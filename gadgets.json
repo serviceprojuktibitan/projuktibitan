@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "products": {
+      ".read": true,
+      ".write": true
+    },
+    "homepageContent": {
+      ".read": true,
+      ".write": true
+    },
+    "registeredUsers": {
+      ".read": true,
+      ".write": true
+    },
+    "employees": {
+      ".read": true,
+      ".write": true
+    },
+    "pendingOrders": {
+      ".read": true,
+      ".write": true
+    },
+    "grabbedOrders": {
+      ".read": true,
+      ".write": true
+    },
+    ".read": false,
+    ".write": false
+  }
+}

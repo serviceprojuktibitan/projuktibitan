@@ -1,0 +1,3155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="website-title">OneCart - Advanced solutions for everyday problems, always within reach</title>
+    <!-- Chosen Palette: Modern Neutrals with Teal Accents -->
+    <!-- Application Structure Plan: This SPA is structured around a main content area where different "pages" are rendered dynamically using JavaScript. Afixed header provides global navigation (Home, Products, Follow Us) and access to Cart and Login/Register functionalities. Each major section is a distinct HTML div. Firebase Realtime Database is now deeply integrated for products (CRUD), homepage content (editable via admin), registered user data (persisted), employee data (persisted), and order management (pending/grabbed orders). Product details now open in a modal, and "Follow Us" scrolls to an animated social media footer. Login is simulated for Admin/User/Employee. -->
+    <!-- Visualization & Content Choices:
+    - Header/Footer: Static HTML/Tailwind for persistent navigation and branding. Social media icons in footer animate on "Follow Us" click.
+    - Custom Login Menu: A floating menu appears on login icon click, with options for User, Employee, and Admin login.
+    - Home Page: Dynamic text blocks and promo banner populated from Firebase 'homepageContent'. Promo banner is an auto-sliding image carousel. - Goal: Inform, Engage. Interaction: Auto-slide, Admin editable.
+    - Products Page: Product grid with cards populated from Firebase 'products'. Clicking a product card opens a detailed modal. - Goal: Inform, Present. Interaction: Click to view details, Add to Cart/Buy Now.
+    - Product Detail Modal: Displays comprehensive product data including name, price, quantity ('Available X pcs'), details, and image. - Goal: Inform.
+    - Cart/Checkout Pages: Form-like layouts with dynamic content placeholders (HTML/JS) - Goal: Inform/Process. Interaction: Quantity adjustments, simulated checkout, order placement to Firebase.
+    - Login/Register: Form inputs now capture more user details (Name, Phone, WhatsApp, Email, Delivery Location) and save to Firebase 'registeredUsers'.
+    - User Dashboard: Displays comprehensive user profile details fetched from Firebase.
+    - Employee Dashboard: New section. Displays pending orders (from Firebase 'pendingOrders') for grabbing, and 'My Grabbed Orders' (simulated for simplicity, or could extend to Firebase 'grabbedOrders' per employee). Income/delivery details are simulated for this demo.
+    - Admin Dashboard:
+        - Product Management: Full CRUD (Create, Read, Update, Delete) for products via Firebase.
+        - User Management: Displays registered users fetched persistently from Firebase, with simulated edit and functional delete.
+        - Employee Management: Allows adding/deleting employees persistently via Firebase.
+        - Admin Settings: Form to edit homepage content (About Us, Services, Contact, Promo Banners, Website Name/Logo, Payment Numbers) saved persistently to Firebase.
+    All icons are Unicode or Font Awesome (loaded via CDN). NO SVG graphics used. NO Mermaid JS used.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+            color: #333;
+        }
+        .page-section {
+            display: none;
+        }
+        .page-section.active {
+            display: block;
+        }
+        /* Admin sub-sections */
+        .admin-sub-section {
+            display: none;
+        }
+        .admin-sub-section.active {
+            display: block;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #a8a8a8;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7a7a7a;
+        }
+        /* Custom Modal Styles */
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .custom-modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            text-align: center;
+            position: relative;
+        }
+        .custom-modal-close-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #777;
+        }
+        .product-detail-modal .custom-modal-content,
+        .edit-product-modal .custom-modal-content {
+            max-width: 600px;
+            text-align: left;
+        }
+        /* Social Media Icon Highlight */
+        .social-icon-highlight {
+            animation: pulse-grow 0.5s ease-in-out forwards;
+        }
+        @keyframes pulse-grow {
+            0% { transform: scale(1); color: #a0aec0; }
+            50% { transform: scale(1.2); color: #6ee7b7; } /* Teal-300 */
+            100% { transform: scale(1); color: #6ee7b7; }
+        }
+        .promo-banner-item {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            height: 100%;
+            width: 100%;
+            background-size: cover;
+            background-position: center;
+            border-radius: 0.75rem;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+        }
+        .promo-banner-text {
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+        }
+
+        /* Custom Login Menu */
+        #login-menu {
+            position: absolute;
+            top: 100%; /* Position below the header */
+            right: 1rem;
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            display: none; /* Controlled by JS active class */
+            flex-direction: row; /* Horizontal layout */
+            gap: 0.5rem;
+            z-index: 51; /* Above header, below modals */
+            min-width: 200px; /* Adjust as needed */
+            justify-content: center; /* Center buttons horizontally */
+            align-items: center;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+        #login-menu.active {
+            display: flex;
+        }
+        #login-menu button {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: #333;
+            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
+            border: 1px solid #e0e0e0; /* Subtle border */
+        }
+        #login-menu button i {
+            margin-right: 0.75rem;
+            font-size: 1.25rem;
+        }
+        #login-menu button:hover {
+            background-color: #f0f0f0;
+            transform: translateY(-2px); /* Slight lift on hover */
+        }
+        #mobile-banking-details {
+            display: none;
+        }
+    </style>
+</head>
+<body class="leading-relaxed min-h-screen flex flex-col">
+
+    <!-- Custom Message Modal -->
+    <div id="custom-message-modal" class="custom-modal-overlay hidden">
+        <div class="custom-modal-content">
+            <button class="custom-modal-close-btn" onclick="hideMessageModal()">&times;</button>
+            <p id="modal-message" class="text-lg font-medium text-gray-800 mb-4"></p>
+            <button class="bg-teal-600 hover:bg-teal-700 text-white py-2 px-5 rounded-md transition-colors" onclick="hideMessageModal()">OK</button>
+        </div>
+    </div>
+
+    <!-- Product Detail Modal -->
+    <div id="product-detail-modal" class="custom-modal-overlay hidden product-detail-modal">
+        <div class="custom-modal-content">
+            <button class="custom-modal-close-btn" onclick="hideProductDetailModal()">&times;</button>
+            <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                <img id="detail-product-image" src="" alt="Product Image" class="w-full md:w-1/2 h-64 object-contain rounded-lg shadow-md">
+                <div class="flex-1 text-left">
+                    <h3 id="detail-product-name" class="text-3xl font-bold text-gray-800 mb-2"></h3>
+                    <p id="detail-product-price" class="text-3xl font-bold text-teal-600 mb-4"></p>
+                    <p id="detail-product-quantity" class="text-lg text-gray-600 mb-4"></p>
+                    <p id="detail-product-details" class="text-gray-700 leading-relaxed mb-6"></p>
+                    <button class="add-to-cart-btn-detail bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105" data-product-id="">
+                        <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Edit Modal -->
+    <div id="edit-product-modal" class="custom-modal-overlay hidden edit-product-modal">
+        <div class="custom-modal-content">
+            <button class="custom-modal-close-btn" onclick="hideEditProductModal()">&times;</button>
+            <h3 class="text-2xl font-semibold text-gray-800 mb-4">Edit Product</h3>
+            <form id="edit-product-form" class="space-y-4">
+                <input type="hidden" id="edit-product-id">
+                <div>
+                    <label for="edit-product-name" class="block text-gray-700 text-sm font-medium mb-1">Product Name:</label>
+                    <input type="text" id="edit-product-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" required>
+                </div>
+                <div>
+                    <label for="edit-product-price" class="block text-gray-700 text-sm font-medium mb-1">Price (BDT):</label>
+                    <input type="number" id="edit-product-price" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" step="0.01" required>
+                </div>
+                <div>
+                    <label for="edit-product-quantity" class="block text-gray-700 text-sm font-medium mb-1">Quantity:</label>
+                    <input type="number" id="edit-product-quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" min="0" required>
+                </div>
+                 <div>
+                    <label for="edit-product-details" class="block text-gray-700 text-sm font-medium mb-1">Details:</label>
+                    <textarea id="edit-product-details" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" rows="3" placeholder="Enter product description or specifications"></textarea>
+                </div>
+                <div>
+                    <label for="edit-product-image" class="block text-gray-700 text-sm font-medium mb-1">Image URL:</label>
+                    <input type="url" id="edit-product-image" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="https://placehold.co/400x300/000000/FFFFFF?text=Product" required>
+                </div>
+                <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Delete Confirmation Modal -->
+    <div id="delete-confirm-modal" class="custom-modal-overlay hidden">
+        <div class="custom-modal-content">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Confirm Deletion</h3>
+            <p class="text-gray-700 mb-6">Are you sure you want to delete this product? This action cannot be undone.</p>
+            <input type="hidden" id="delete-product-id-confirm">
+            <div class="flex justify-center space-x-4">
+                <button class="bg-red-600 hover:bg-red-700 text-white py-2 px-5 rounded-md transition-colors" onclick="confirmDeleteProduct()">Delete</button>
+                <button class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-5 rounded-md transition-colors" onclick="hideDeleteConfirmModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+      <!-- Package Detail Modal -->
+    <div id="package-detail-modal" class="custom-modal-overlay hidden package-detail-modal">
+        <div class="custom-modal-content">
+            <button class="custom-modal-close-btn" onclick="hidePackageDetailModal()">&times;</button>
+            <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                <img id="detail-package-image" src="" alt="Package Image" class="w-full md:w-1/2 h-64 object-contain rounded-lg shadow-md">
+                <div class="flex-1 text-left">
+                    <h3 id="detail-package-name" class="text-3xl font-bold text-gray-800 mb-2"></h3>
+                    <p id="detail-package-price" class="text-3xl font-bold text-teal-600 mb-4"></p>
+                    <p id="detail-package-details" class="text-gray-700 leading-relaxed mb-6"></p>
+                    <button class="add-to-cart-btn-package-detail bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105" data-package-id="">
+                        <i class="fas fa-cart-plus mr-2"></i> Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Package Edit Modal -->
+    <div id="edit-package-modal" class="custom-modal-overlay hidden edit-package-modal">
+        <div class="custom-modal-content">
+            <button class="custom-modal-close-btn" onclick="hideEditPackageModal()">&times;</button>
+            <h3 class="text-2xl font-semibold text-gray-800 mb-4">Edit Package</h3>
+            <form id="edit-package-form" class="space-y-4">
+                <input type="hidden" id="edit-package-id">
+                <div>
+                    <label for="edit-package-name" class="block text-gray-700 text-sm font-medium mb-1">Package Name:</label>
+                    <input type="text" id="edit-package-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" required>
+                </div>
+                <div>
+                    <label for="edit-package-price" class="block text-gray-700 text-sm font-medium mb-1">Price (BDT):</label>
+                    <input type="number" id="edit-package-price" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" step="0.01" required>
+                </div>
+                 <div>
+                    <label for="edit-package-details" class="block text-gray-700 text-sm font-medium mb-1">Details:</label>
+                    <textarea id="edit-package-details" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" rows="3" placeholder="Enter package description or specifications"></textarea>
+                </div>
+                <div>
+                    <label for="edit-package-image" class="block text-gray-700 text-sm font-medium mb-1">Image URL:</label>
+                    <input type="url" id="edit-package-image" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="https://placehold.co/400x300/000000/FFFFFF?text=Package" required>
+                </div>
+                <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Package Delete Confirmation Modal -->
+    <div id="delete-package-confirm-modal" class="custom-modal-overlay hidden">
+        <div class="custom-modal-content">
+            <h3 class="text-xl font-semibold text-gray-800 mb-4">Confirm Deletion</h3>
+            <p class="text-gray-700 mb-6">Are you sure you want to delete this package? This action cannot be undone.</p>
+            <input type="hidden" id="delete-package-id-confirm">
+            <div class="flex justify-center space-x-4">
+                <button class="bg-red-600 hover:bg-red-700 text-white py-2 px-5 rounded-md transition-colors" onclick="confirmDeletePackage()">Delete</button>
+                <button class="bg-gray-400 hover:bg-gray-500 text-white py-2 px-5 rounded-md transition-colors" onclick="hideDeletePackageConfirmModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-gray-800 text-white shadow-lg py-4 sticky top-0 z-50 rounded-b-xl">
+        <div class="container mx-auto px-4 flex flex-col sm:flex-row justify-between items-center">
+            <!-- Left: Company Logo -->
+            <div class="flex items-center space-x-2 mb-3 sm:mb-0">
+                <img id="website-logo" src="https://placehold.co/40x40/000000/FFFFFF?text=Logo" alt="Website Logo" class="h-10 w-10 rounded-full">
+                <a href="#" class="text-3xl font-bold hover:text-teal-400 transition-colors duration-300" data-page="home">
+                    <span id="website-name">Gadgets<span class="text-teal-400">House</span></span>
+                </a>
+            </div>
+
+            <!-- Center: Menu -->
+            <nav class="flex-grow text-center mb-3 sm:mb-0">
+                <ul class="flex flex-wrap justify-center space-x-4 sm:space-x-8 text-lg font-medium">
+                    <li><a href="#" class="hover:text-teal-400 transition-colors duration-300 px-3 py-1 rounded-md" data-page="home">Home</a></li>
+                    <li><a href="#" class="hover:text-teal-400 transition-colors duration-300 px-3 py-1 rounded-md" data-page="products">Products</a></li>
+                    <li><a href="#" class="hover:text-teal-400 transition-colors duration-300 px-3 py-1 rounded-md" data-page="products">Services</a></li>
+
+                    
+                    <li><a href="#footer" id="follow-us-link" class="hover:text-teal-400 transition-colors duration-300 px-3 py-1 rounded-md">Follow Us</a></li>
+                </ul>
+            </nav>
+
+            <!-- Right: Cart Icon, Login Icon -->
+            <div class="flex items-center space-x-6 relative">
+                <a href="#" class="text-2xl hover:text-teal-400 transition-colors duration-300 relative" data-page="cart">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span id="cart-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                </a>
+                <a href="#" class="text-2xl hover:text-teal-400 transition-colors duration-300" id="human-icon-menu-toggle">
+                    <i class="fas fa-user-circle"></i>
+                </a>
+                <!-- Login Menu -->
+                <div id="login-menu" class="hidden">
+                    <button data-login-type="user"><i class="fas fa-user"></i> User</button>
+                    <button data-login-type="employee"><i class="fas fa-hard-hat"></i> Employee</button>
+                    <button data-login-type="admin"><i class="fas fa-user-shield"></i> Admin</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="container mx-auto px-4 py-8 flex-grow">
+
+        <!-- Home Page -->
+        <section id="home-page" class="page-section active bg-white p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2">Welcome to GadgetsHouse!</h2>
+
+            <!-- Promo Banner (Auto Slide) -->
+            <div class="relative w-full h-64 md:h-96 overflow-hidden rounded-xl shadow-md mb-8">
+                <div id="promo-slider" class="flex transition-transform duration-500 ease-in-out h-full">
+                    <!-- Promo banners will be dynamically inserted here -->
+                </div>
+                <div id="promo-dots" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    <!-- Promo dots will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- আমাদের সম্পর্কে (About Us) -->
+            <div id="about-us-section" class="mb-10 p-6 bg-teal-50 rounded-lg shadow-sm">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-teal-500 pb-2">আমাদের সম্পর্কে</h3>
+                <p id="about-us-text" class="text-lg text-gray-700 leading-relaxed">
+                    <!-- Content loaded from Firebase -->
+                </p>
+            </div>
+
+            <!-- আমাদের সেবা (Our Services) -->
+            <div id="our-services-section" class="mb-10 p-6 bg-blue-50 rounded-lg shadow-sm">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-blue-500 pb-2">আমাদের সেবা</h3>
+                <div id="services-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                    <!-- Services loaded from Firebase -->
+                </div>
+            </div>
+
+            <!-- যোগাযোগ মাধ্যম (Contact Info) -->
+            <div id="contact-info-section" class="p-6 bg-purple-50 rounded-lg shadow-sm">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-purple-500 pb-2">যোগাযোগ মাধ্যম</h3>
+                <div class="text-lg text-gray-700 space-y-3">
+                    <p><i class="fas fa-map-marker-alt text-purple-600 mr-3"></i> ঠিকানা: <span id="contact-address"><!-- Content loaded from Firebase --></span></p>
+                    <p><i class="fas fa-phone text-purple-600 mr-3"></i> ফোন: <span id="contact-phone"><!-- Content loaded from Firebase --></span></p>
+                    <p><i class="fas fa-envelope text-purple-600 mr-3"></i> ইমেইল: <span id="contact-email"><!-- Content loaded from Firebase --></span></p>
+                    <p><i class="fab fa-facebook text-purple-600 mr-3"></i> ফেসবুক: <a href="#" id="contact-facebook" class="text-purple-600 hover:underline" target="_blank"><!-- Content loaded from Firebase --></a></p>
+                </div>
+            </div>
+                  </section>
+
+                   <section id="package-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8">
+  <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2">Our Packages</h2>
+  <div id="package-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+    <!-- Packages loaded from Firebase or hardcoded -->
+  </div>
+</section>
+
+        <!-- Products Page -->
+        <section id="products-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2">Our Products</h2>
+            <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <!-- Products will be dynamically loaded from Firebase here -->
+            </div>
+        </section>
+
+        <!-- Cart Page -->
+        <section id="cart-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2">Your Shopping Cart</h2>
+            <div id="cart-items" class="space-y-4 mb-6">
+                <!-- Cart items will be dynamically inserted here -->
+            </div>
+            <div class="flex justify-between items-center text-2xl font-bold text-gray-800 border-t-2 border-gray-200 pt-4">
+                <span>Total:</span>
+                <span id="cart-total">BDT 0.00</span>
+            </div>
+            <div class="mt-8 text-right">
+                <button class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105" id="proceed-to-checkout-btn">
+                    Proceed to Checkout <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Checkout Page (Order Confirmation) -->
+        <section id="checkout-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2">Order Confirmation & Payment</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">Product Summary</h3>
+                    <div id="checkout-summary" class="bg-gray-50 p-6 rounded-lg shadow-sm space-y-3">
+                        <!-- Product summary will be dynamically inserted here -->
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">Delivery & Payment</h3>
+                    <div class="bg-gray-50 p-6 rounded-lg shadow-sm space-y-4">
+                        <div class="mb-4">
+                            <label for="delivery-location-select" class="block text-gray-700 text-sm font-medium mb-1">Select Delivery Location:</label>
+                            <select id="delivery-location-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                <option value="">Loading locations...</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="radio" id="payment_cod" name="payment_method" value="COD" class="form-radio text-teal-600 h-5 w-5" checked>
+                            <label for="payment_cod" class="ml-3 text-lg text-gray-700">Cash on Delivery (COD)</label>
+                        </div>
+                        <!-- Removed Bkash, Rocket, Nagad payment options as requested -->
+                        <!-- Mobile Banking Details Section - Hidden since COD is only option -->
+                        <div id="mobile-banking-details" class="mt-4 p-4 border border-gray-300 rounded-lg bg-white hidden">
+                            <!-- This content will effectively be unused but kept to avoid breaking references for other features -->
+                            <p class="text-lg font-semibold text-gray-800 mb-2">Send Money To:</p>
+                            <p id="payment-gateway-info" class="text-xl font-bold text-teal-600 mb-4"></p>
+                            <div class="text-sm text-gray-600 mb-4 p-2 bg-yellow-50 rounded-md border border-yellow-200">
+                                <p class="font-bold text-yellow-800 mb-1">IMPORTANT: Please follow these steps:</p>
+                                <ol class="list-decimal list-inside text-left space-y-1">
+                                    <li>Go to your <span id="gateway-name"></span> app.</li>
+                                    <li>Select 'Send Money'.</li>
+                                    <li>Enter the above number.</li>
+                                    <li>Enter the exact amount: BDT <span id="required-payment-amount"></span>.</li>
+                                    <li>Confirm the transaction.</li>
+                                    <li>Copy the Transaction ID and paste it in the field below.</li>
+                                    <li>Enter your paid mobile number below.</li>
+                                </ol>
+                            </div>
+                            <div>
+                                <label for="paid-from-number" class="block text-gray-700 text-sm font-medium mb-1">Your Paid Mobile Number:</label>
+                                <input type="tel" id="paid-from-number" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., 01XXXXXXXXX">
+                            </div>
+                            <div>
+                                <label for="transaction-id" class="block text-gray-700 text-sm font-medium mb-1">Transaction ID:</label>
+                                <input type="text" id="transaction-id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Enter Transaction ID">
+                            </div>
+                            <div class="mt-3">
+                                <label for="payment-amount-input" class="block text-gray-700 text-sm font-medium mb-1">Payment Amount (BDT):</label>
+                                <input type="number" id="payment-amount-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" step="0.01" placeholder="Enter amount sent">
+                            </div>
+                        </div>
+                        <div class="mt-6 p-4 bg-white rounded-lg border border-dashed border-gray-300">
+                            <h4 class="text-xl font-semibold text-gray-800 mb-3">Apply Coupon</h4>
+                            <div class="flex space-x-2">
+                                <input type="text" id="coupon-input" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Enter coupon code">
+                                <button id="apply-coupon-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-colors">Apply</button>
+                            </div>
+                            <p id="coupon-discount-display" class="text-green-600 font-medium mt-2 hidden">Discount Applied: -BDT 0.00</p>
+                            <p id="coupon-error-display" class="text-red-500 text-sm mt-2 hidden">Invalid coupon code.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-10 text-right">
+                <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105" id="final-place-order-btn">
+                    Confirm Order <i class="fas fa-check-circle ml-2"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Login / Register Page -->
+        <section id="login-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8 max-w-lg mx-auto">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2 text-center" id="login-form-title">Login</h2>
+            
+            <!-- User Login/Register Section -->
+            <div id="user-login-section">
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">User Login / Register</h3>
+                <form id="user-login-form" class="space-y-4">
+                    <div>
+                        <label for="user-email" class="block text-gray-700 text-lg font-medium mb-2">Email:</label>
+                        <input type="email" id="user-email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="your.email@example.com">
+                    </div>
+                    <div>
+                        <label for="user-password" class="block text-gray-700 text-lg font-medium mb-2">Password:</label>
+                        <input type="password" id="user-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="********">
+                    </div>
+                    <button type="submit" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Login</button>
+                </form>
+                <p class="text-center text-gray-600 mt-4">Don't have an account? <a href="#" id="show-register" class="text-teal-600 hover:underline font-medium">Register Now</a></p>
+                <form id="user-register-form" class="space-y-4 hidden mt-6">
+                    <div>
+                        <label for="register-name" class="block text-gray-700 text-lg font-medium mb-2">Name:</label>
+                        <input type="text" id="register-name" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Your Name" required>
+                    </div>
+                    <div>
+                        <label for="register-phone" class="block text-gray-700 text-lg font-medium mb-2">Phone Number:</label>
+                        <input type="tel" id="register-phone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g., +8801XXXXXXXXX" required>
+                    </div>
+                     <div>
+                        <label for="register-whatsapp" class="block text-gray-700 text-lg font-medium mb-2">WhatsApp Number (Optional):</label>
+                        <input type="tel" id="register-whatsapp" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Same as phone or different">
+                    </div>
+                    <div>
+                        <label for="register-email" class="block text-gray-700 text-lg font-medium mb-2">Email:</label>
+                        <input type="email" id="register-email" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="your.email@example.com" required>
+                    </div>
+                    <div>
+                        <label for="register-delivery-location" class="block text-gray-700 text-lg font-medium mb-2">Delivery Location:</label>
+                        <input type="text" id="register-delivery-location" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Your full delivery address" required>
+                    </div>
+                    <div>
+                        <label for="register-password" class="block text-gray-700 text-lg font-medium mb-2">Password:</label>
+                        <input type="password" id="register-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="********" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Register</button>
+                    <p class="text-center text-gray-600 mt-4">Already have an account? <a href="#" id="show-login" class="text-blue-600 hover:underline font-medium">Login Here</a></p>
+                </form>
+            </div>
+
+            <!-- Employee Login Section -->
+            <div id="employee-login-section" class="hidden mt-8">
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">Employee Login</h3>
+                <form id="employee-login-form" class="space-y-4">
+                    <div>
+                        <label for="employee-username" class="block text-gray-700 text-lg font-medium mb-2">Username:</label>
+                        <input type="text" id="employee-username" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="employee_user">
+                    </div>
+                    <div>
+                        <label for="employee-password" class="block text-gray-700 text-lg font-medium mb-2">Password:</label>
+                        <input type="password" id="employee-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="********">
+                    </div>
+                    <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Employee Login</button>
+                </form>
+            </div>
+
+            <!-- Admin Login Section -->
+            <div id="admin-login-section" class="hidden mt-8">
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">Admin Login</h3>
+                <form id="admin-login-form" class="space-y-4">
+                    <div>
+                        <label for="admin-username" class="block text-gray-700 text-lg font-medium mb-2">Username:</label>
+                        <input type="text" id="admin-username" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="admin_user">
+                    </div>
+                    <div>
+                        <label for="admin-password" class="block text-gray-700 text-lg font-medium mb-2">Password:</label>
+                        <input type="password" id="admin-password" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="********">
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Admin Login</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- User Dashboard -->
+        <section id="user-dashboard-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8 max-w-2xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2 text-center">My Account</h2>
+            <div class="mb-8 p-6 bg-teal-50 rounded-lg shadow-sm">
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">Profile Information</h3>
+                <p class="text-lg text-gray-700"><span class="font-bold">Name:</span> <span id="user-profile-name"></span></p>
+                <p class="text-lg text-gray-700"><span class="font-bold">Email:</span> <span id="user-profile-email"></span></p>
+                <p class="text-lg text-gray-700"><span class="font-bold">Phone:</span> <span id="user-profile-phone"></span></p>
+                <p class="text-lg text-gray-700"><span class="font-bold">WhatsApp:</span> <span id="user-profile-whatsapp"></span></p>
+                <p class="text-lg text-gray-700"><span class="font-bold">Delivery Location:</span> <span id="user-profile-location"></span></p>
+                <p class="text-lg text-gray-700"><span class="font-bold">Member Since:</span> <span id="user-profile-registered-at"></span></p>
+                <button class="mt-4 bg-teal-500 hover:bg-teal-600 text-white py-2 px-4 rounded-md text-sm transition-colors duration-300">Edit Profile (Simulated)</button>
+            </div>
+
+            <div class="p-6 bg-blue-50 rounded-lg shadow-sm">
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">My Orders</h3>
+                <div class="space-y-4">
+                    <div class="border border-gray-200 p-4 rounded-lg">
+                        <p class="text-lg font-semibold text-gray-800">Order #GH12345</p>
+                        <p class="text-gray-700">Date: 2024-07-20 | Total: BDT 299.99</p>
+                        <p class="text-gray-600">Status: Delivered</p>
+                    </div>
+                    <div class="border border-gray-200 p-4 rounded-lg">
+                        <p class="text-lg font-semibold text-gray-800">Order #GH12344</p>
+                        <p class="text-gray-700">Date: 2024-06-15 | Total: BDT 129.99</p>
+                        <p class="text-gray-600">Status: Shipped</p>
+                    </div>
+                </div>
+            </div>
+            <button class="mt-8 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors duration-300" id="logout-user">Logout</button>
+        </section>
+
+        <!-- Employee Dashboard -->
+        <section id="employee-dashboard-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2 text-center">Employee Dashboard</h2>
+            <p class="text-sm text-gray-500 text-center mb-6">(Income and delivery history management is simulated. Actual persistence and time-based deletion would require a backend.)</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="bg-teal-50 p-6 rounded-lg shadow-sm">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">Your Performance</h3>
+                    <p class="text-lg text-gray-700 mb-2"><span class="font-bold">Daily Income (Simulated):</span> BDT <span id="employee-daily-income">0.00</span></p>
+                    <p class="text-lg text-gray-700"><span class="font-bold">Weekly Income (Simulated):</span> BDT <span id="employee-weekly-income">0.00</span></p>
+                </div>
+                <div class="bg-blue-50 p-6 rounded-lg shadow-sm">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4">Your Grabbed Orders</h3>
+                    <div id="employee-grabbed-orders" class="space-y-3 max-h-48 overflow-y-auto">
+                        <p class="text-gray-600">No orders grabbed yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-teal-500 pb-2">Recent Orders to Grab</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white rounded-lg shadow-md">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                            <th class="py-3 px-6 text-left">Order ID</th>
+                            <th class="py-3 px-6 text-left">Customer</th>
+                            <th class="py-3 px-6 text-left">Items</th>
+                            <th class="py-3 px-6 text-left">Total</th>
+                            <th class="py-3 px-6 text-left">Location</th>
+                            <th class="py-3 px-6 text-left">Placed At</th>
+                            <th class="py-3 px-6 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-orders-list" class="text-gray-600 text-sm font-light">
+                        <tr><td colspan="7" class="py-3 px-6 text-center">No pending orders.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <button class="mt-8 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors duration-300" id="logout-employee">Logout</button>
+        </section>
+
+        <!-- Admin Dashboard -->
+        <section id="admin-dashboard-page" class="page-section bg-white p-8 rounded-xl shadow-lg mb-8">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-6 border-b-2 border-teal-600 pb-2 text-center">Admin Panel</h2>
+
+            <div class="flex flex-wrap justify-center gap-4 mb-8">
+                <button class="admin-nav-btn bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-full transition duration-300" data-admin-page="product-manage">
+                    <i class="fas fa-box-open mr-2"></i> Product Management
+                </button>
+                <button class="admin-nav-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition duration-300" data-admin-page="user-manage">
+                    <i class="fas fa-users mr-2"></i> User Management
+                </button>
+                <button class="admin-nav-btn bg-orange-600 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded-full transition duration-300" data-admin-page="employee-manage">
+                    <i class="fas fa-user-tie mr-2"></i> Employee Management
+                </button>
+                 <button class="admin-nav-btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full transition duration-300" data-admin-page="order-manage">
+                    <i class="fas fa-clipboard-list mr-2"></i> Order Management
+                </button>
+                <button class="admin-nav-btn bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-full transition duration-300" data-admin-page="admin-settings">
+                    <i class="fas fa-cogs mr-2"></i> Admin Settings
+                </button>
+            </div>
+
+            <!-- Product Management Sub-Section -->
+            <div id="product-manage-sub-section" class="admin-sub-section active p-6 bg-green-50 rounded-lg shadow-sm mb-6">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-green-500 pb-2">Product Management</h3>
+                
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Add New Product</h4>
+                <form id="add-product-form" class="space-y-4 mb-8 p-4 bg-white rounded-lg shadow-md">
+                    <div>
+                        <label for="new-product-name" class="block text-gray-700 text-sm font-medium mb-1">Product Name:</label>
+                        <input type="text" id="new-product-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" required>
+                    </div>
+                    <div>
+                        <label for="new-product-price" class="block text-gray-700 text-sm font-medium mb-1">Price (BDT):</label>
+                        <input type="number" id="new-product-price" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" step="0.01" required>
+                    </div>
+                    <div>
+                        <label for="new-product-quantity" class="block text-gray-700 text-sm font-medium mb-1">Quantity:</label>
+                        <input type="number" id="new-product-quantity" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" min="0" required>
+                    </div>
+                    <div>
+                        <label for="new-product-details" class="block text-gray-700 text-sm font-medium mb-1">Details:</label>
+                        <textarea id="new-product-details" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" rows="3" placeholder="Enter product description or specifications"></textarea>
+                    </div>
+                    <div>
+                        <label for="new-product-image" class="block text-gray-700 text-sm font-medium mb-1">Image URL:</label>
+                        <input type="url" id="new-product-image" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="https://placehold.co/400x300/000000/FFFFFF?text=Product" required>
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Add New Product</button>
+                </form>
+
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Existing Products</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">ID</th>
+                                <th class="py-3 px-6 text-left">Name</th>
+                                <th class="py-3 px-6 text-left">Price</th>
+                                <th class="py-3 px-6 text-left">Qty</th>
+                                <th class="py-3 px-6 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-product-list" class="text-gray-600 text-sm font-light">
+                            <!-- Products will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- User Management Sub-Section (Persistent via Firebase) -->
+            <div id="user-manage-sub-section" class="admin-sub-section p-6 bg-blue-50 rounded-lg shadow-sm mb-6">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-blue-500 pb-2">User Management <span class="text-sm text-gray-600 font-normal">(Persistent via Firebase)</span></h3>
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Registered Users</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">ID</th>
+                                <th class="py-3 px-6 text-left">Name</th>
+                                <th class="py-3 px-6 text-left">Email</th>
+                                <th class="py-3 px-6 text-left">Phone</th>
+                                <th class="py-3 px-6 text-left">Location</th>
+                                <th class="py-3 px-6 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-user-list" class="text-gray-600 text-sm font-light">
+                            <!-- Users will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Employee Management Sub-Section (Persistent via Firebase) -->
+            <div id="employee-manage-sub-section" class="admin-sub-section p-6 bg-red-50 rounded-lg shadow-sm mb-6">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-red-500 pb-2">Employee Management <span class="text-sm text-gray-600 font-normal">(Persistent via Firebase)</span></h3>
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Add New Employee</h4>
+                <form id="add-employee-form" class="space-y-4 mb-8 p-4 bg-white rounded-lg shadow-md">
+                    <div>
+                        <label for="new-employee-name" class="block text-gray-700 text-sm font-medium mb-1">Employee Name:</label>
+                        <input type="text" id="new-employee-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                    </div>
+                    <div>
+                        <label for="new-employee-username" class="block text-gray-700 text-sm font-medium mb-1">Username:</label>
+                        <input type="text" id="new-employee-username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                    </div>
+                     <div>
+                        <label for="new-employee-password" class="block text-gray-700 text-sm font-medium mb-1">Password:</label>
+                        <input type="password" id="new-employee-password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                    </div>
+                     <div>
+                        <label for="new-employee-email" class="block text-gray-700 text-sm font-medium mb-1">Email:</label>
+                        <input type="email" id="new-employee-email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" required>
+                    </div>
+                    <div>
+                        <label for="new-employee-role" class="block text-gray-700 text-sm font-medium mb-1">Role:</label>
+                        <input type="text" id="new-employee-role" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" value="Delivery Agent" required>
+                    </div>
+                    <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Add New Employee</button>
+                </form>
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Existing Employees</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">ID</th>
+                                <th class="py-3 px-6 text-left">Name</th>
+                                <th class="py-3 px-6 text-left">Username</th>
+                                <th class="py-3 px-6 text-left">Email</th>
+                                <th class="py-3 px-6 text-left">Role</th>
+                                <th class="py-3 px-6 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-employee-list" class="text-gray-600 text-sm font-light">
+                            <!-- Employees will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Order Management Sub-Section (Persistent via Firebase) -->
+            <div id="order-manage-sub-section" class="admin-sub-section p-6 bg-green-50 rounded-lg shadow-sm mb-6">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-green-500 pb-2">Order Management <span class="text-sm text-gray-600 font-normal">(Showing last 15 days)</span></h3>
+                
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Pending Orders</h4>
+                <div class="overflow-x-auto mb-8">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Order ID</th>
+                                <th class="py-3 px-6 text-left">Customer</th>
+                                <th class="py-3 px-6 text-left">Total (BDT)</th>
+                                <th class="py-3 px-6 text-left">Status</th>
+                                <th class="py-3 px-6 text-left">Placed At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-pending-orders-list" class="text-gray-600 text-sm font-light">
+                            <tr><td colspan="5" class="py-3 px-6 text-center">No pending orders.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Grabbed & Delivered Orders</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Order ID</th>
+                                <th class="py-3 px-6 text-left">Customer</th>
+                                <th class="py-3 px-6 text-left">Total (BDT)</th>
+                                <th class="py-3 px-6 text-left">Status</th>
+                                <th class="py-3 px-6 text-left">Grabbed By</th>
+                                <th class="py-3 px-6 text-left">Grabbed At</th>
+                                <th class="py-3 px-6 text-left">Delivered At</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-grabbed-orders-list" class="text-gray-600 text-sm font-light">
+                            <tr><td colspan="7" class="py-3 px-6 text-center">No grabbed or delivered orders.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+            <!-- Admin Settings Sub-Section (Persistent via Firebase) -->
+            <div id="admin-settings-sub-section" class="admin-sub-section p-6 bg-purple-50 rounded-lg shadow-sm mb-6">
+                <h3 class="text-3xl font-semibold text-gray-800 mb-4 border-b border-purple-500 pb-2">Admin Settings <span class="text-sm text-gray-600 font-normal">(Persistent via Firebase)</span></h3>
+                
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Website General Settings</h4>
+                <form id="website-general-settings-form" class="space-y-4 p-4 bg-white rounded-lg shadow-md mb-8">
+                    <div>
+                        <label for="admin-website-name" class="block text-gray-700 text-sm font-medium mb-1">Website Name:</label>
+                        <input type="text" id="admin-website-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                     <div>
+                        <label for="admin-website-logo-url" class="block text-gray-700 text-sm font-medium mb-1">Website Logo URL:</label>
+                        <input type="url" id="admin-website-logo-url" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="https://example.com/logo.png">
+                    </div>
+                     <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Save General Settings</button>
+                </form>
+
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Homepage Content Settings</h4>
+                <form id="homepage-content-form" class="space-y-4 p-4 bg-white rounded-lg shadow-md mb-8">
+                    <div>
+                        <label for="home-about-us-text" class="block text-gray-700 text-sm font-medium mb-1">About Us Text:</label>
+                        <textarea id="home-about-us-text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" rows="4"></textarea>
+                    </div>
+                    <h5 class="text-xl font-semibold text-gray-800 mt-6 mb-2">Our Services</h5>
+                    <div id="services-form-container" class="space-y-3">
+                        <!-- Service inputs will be dynamically generated -->
+                    </div>
+                    <button type="button" id="add-service-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md text-sm transition-colors">Add Service</button>
+
+                    <h5 class="text-xl font-semibold text-gray-800 mt-6 mb-2">Contact Information</h5>
+                    <div>
+                        <label for="contact-address-input" class="block text-gray-700 text-sm font-medium mb-1">Address:</label>
+                        <input type="text" id="contact-address-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="contact-phone-input" class="block text-gray-700 text-sm font-medium mb-1">Phone:</label>
+                        <input type="text" id="contact-phone-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="contact-email-input" class="block text-gray-700 text-sm font-medium mb-1">Email:</label>
+                        <input type="email" id="contact-email-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="contact-facebook-input" class="block text-gray-700 text-sm font-medium mb-1">Facebook Link:</label>
+                        <input type="url" id="contact-facebook-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="https://facebook.com/yourpage">
+                    </div>
+
+
+                    <div>
+  <label for="contact-tiktok-input" class="block text-gray-700 text-sm font-medium mb-1">TikTok Link:</label>
+  <input type="url" id="contact-tiktok-input" class="w-full px-3 py-2 border rounded-lg">
+</div>
+<div>
+  <label for="contact-linkedin-input" class="block text-gray-700 text-sm font-medium mb-1">LinkedIn Link:</label>
+  <input type="url" id="contact-linkedin-input" class="w-full px-3 py-2 border rounded-lg">
+</div>
+<div>
+  <label for="contact-whatsapp-input" class="block text-gray-700 text-sm font-medium mb-1">WhatsApp Number:</label>
+  <input type="tel" id="contact-whatsapp-input" class="w-full px-3 py-2 border rounded-lg">
+</div>
+
+                    <h5 class="text-xl font-semibold text-gray-800 mt-6 mb-2">Promotional Banners</h5>
+                    <div id="promo-banners-form-container" class="space-y-3">
+                        <!-- Banner inputs will be dynamically generated -->
+                    </div>
+
+                    <h5 class="text-xl font-semibold text-gray-800 mt-6 mb-2">Contract Information</h5>
+
+
+
+                    <button type="button" id="add-promo-banner-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md text-sm transition-colors">Add Banner</button>
+
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 mt-8">Save Homepage Settings</button>
+                </form>
+
+                 <h4 class="text-2xl font-semibold text-gray-800 mb-4">Payment Gateway Settings (Hidden)</h4>
+                <form id="payment-gateway-settings-form" class="space-y-4 p-4 bg-white rounded-lg shadow-md mb-8 hidden">
+                    <div>
+                        <label for="bkash-number-input" class="block text-gray-700 text-sm font-medium mb-1">Bkash Number:</label>
+                        <input type="text" id="bkash-number-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="rocket-number-input" class="block text-gray-700 text-sm font-medium mb-1">Rocket Number:</label>
+                        <input type="text" id="rocket-number-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <div>
+                        <label for="nagad-number-input" class="block text-gray-700 text-sm font-medium mb-1">Nagad Number:</label>
+                        <input type="text" id="nagad-number-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Save Payment Settings</button>
+                </form>
+
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Delivery Location Management</h4>
+                <form id="add-delivery-location-form" class="space-y-4 mb-8 p-4 bg-white rounded-lg shadow-md">
+                    <div>
+                        <label for="new-location-name" class="block text-gray-700 text-sm font-medium mb-1">Location Name:</label>
+                        <input type="text" id="new-location-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required>
+                    </div>
+                    <div>
+                        <label for="new-location-charge" class="block text-gray-700 text-sm font-medium mb-1">Delivery Charge (BDT):</label>
+                        <input type="number" id="new-location-charge" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" step="0.01" min="0" required>
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Add New Location</button>
+                </form>
+
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Existing Delivery Locations</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Location Name</th>
+                                <th class="py-3 px-6 text-left">Delivery Charge</th>
+                                <th class="py-3 px-6 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-delivery-location-list" class="text-gray-600 text-sm font-light">
+                            <!-- Locations will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4 mt-8">Coupon Management</h4>
+                <form id="add-coupon-form" class="space-y-4 mb-8 p-4 bg-white rounded-lg shadow-md">
+                    <div>
+                        <label for="new-coupon-code" class="block text-gray-700 text-sm font-medium mb-1">Coupon Code:</label>
+                        <input type="text" id="new-coupon-code" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" required>
+                    </div>
+                    <div>
+                        <label for="new-coupon-discount" class="block text-gray-700 text-sm font-medium mb-1">Discount Percentage (%):</label>
+                        <input type="number" id="new-coupon-discount" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" step="1" min="1" max="100" required>
+                    </div>
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105">Add New Coupon</button>
+                </form>
+
+                <h4 class="text-2xl font-semibold text-gray-800 mb-4">Existing Coupons</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-lg shadow-md">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-700 uppercase text-sm leading-normal">
+                                <th class="py-3 px-6 text-left">Coupon Code</th>
+                                <th class="py-3 px-6 text-left">Discount (%)</th>
+                                <th class="py-3 px-6 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-coupon-list" class="text-gray-600 text-sm font-light">
+                            <!-- Coupons will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <button class="mt-8 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors duration-300" id="logout-admin">Logout</button>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer id="footer" class="bg-gray-800 text-white py-6 mt-12 rounded-t-xl">
+        <div class="container mx-auto px-4 text-center text-gray-400">
+            <p>&copy; 2024 <span id="footer-website-name">GadgetsHouse</span>. All rights reserved.</p>
+            <div class="flex justify-center space-x-6 mt-4 text-2xl">
+                <a href="#" target="_blank" class="hover:text-teal-400 transition-colors duration-300 social-icon" title="Facebook" id="footer-facebook-link"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" target="_blank" class="hover:text-teal-400 transition-colors duration-300 social-icon" title="Twitter" id="footer-twitter-link"><i class="fab fa-twitter"></i></a>
+                <a href="#" target="_blank" class="hover:text-teal-400 transition-colors duration-300 social-icon" title="Instagram" id="footer-instagram-link"><i class="fab fa-instagram"></i></a>
+                <a href="#" target="_blank" class="hover:text-teal-400 transition-colors duration-300 social-icon" title="LinkedIn" id="footer-linkedin-link"><i class="fab fa-linkedin-in"></i></a>
+                <a href="#" target="_blank" class="hover:text-teal-400 transition-colors duration-300 social-icon" title="WhatsApp" id="footer-whatsapp-link"><i class="fab fa-whatsapp"></i></a>
+                <a href="#" target="_blank" class="hover:text-teal-400 transition-colors duration-300 social-icon" title="TikTok" id="footer-tiktok-link"><i class="fab fa-tiktok"></i></a>
+                <a href="#" target="_blank" class="hover:text-teal-400 transition-colors duration-300 social-icon" title="YouTube" id="footer-youtube-link"><i class="fab fa-youtube"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script>
+        // --- Custom Message Modal Functions ---
+        function showMessageModal(message) {
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('custom-message-modal').classList.remove('hidden');
+        }
+
+        function hideMessageModal() {
+            document.getElementById('custom-message-modal').classList.add('hidden');
+        }
+
+        // --- Global Login State Management (using localStorage) ---
+        let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+        let currentEmployee = JSON.parse(localStorage.getItem('currentEmployee')) || null;
+        let currentAdmin = JSON.parse(localStorage.getItem('currentAdmin')) || null; // Just a flag or object if admin details are needed
+
+        function saveLoginState() {
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            localStorage.setItem('currentEmployee', JSON.stringify(currentEmployee));
+            localStorage.setItem('currentAdmin', JSON.stringify(currentAdmin));
+        }
+
+        function clearLoginState() {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('currentEmployee');
+            localStorage.removeItem('currentAdmin');
+            currentUser = null;
+            currentEmployee = null;
+            currentAdmin = null;
+        }
+
+        // --- Firebase API Integration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBw8OeIsZ6mBQ9FSZlspdskZPXSU48AaUw",
+            authDomain: "gadgets-c5e66.firebaseapp.com",
+            databaseURL: "https://gadgets-c5e66-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "gadgets-c5e66",
+            storageBucket: "gadgets-c5e66.firebasestorage.app",
+            messagingSenderId: "115947201398",
+            appId: "1:115947201398:web:5d9f949bd3f3351cb45057",
+            measurementId: "G-Y6ECN9J8GE"
+        };
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = app.database();
+
+        // --- Core Application State & Data ---
+        let productsData = []; // This will hold products fetched from Firebase
+        let cart = []; // Stores { productId, name, price, quantity }
+        let currentDeliveryCharge = 0; // Default delivery charge
+        let selectedDeliveryLocation = null; // Stores the selected location object {id, name, charge}
+        let appliedCoupon = null; // Stores { code, discountPercent }
+
+
+        // Firebase references
+        const productsRef = database.ref('products');
+        const homepageContentRef = database.ref('homepageContent');
+        const registeredUsersRef = database.ref('registeredUsers');
+        const employeesRef = database.ref('employees');
+        const pendingOrdersRef = database.ref('pendingOrders');
+        const grabbedOrdersRef = database.ref('grabbedOrders');
+        const deliveryLocationsRef = database.ref('deliveryLocations'); // New Firebase ref
+        const couponsRef = database.ref('coupons'); // New Firebase ref for coupons
+
+        // Data holders populated by Firebase listeners
+        let registeredUsersData = [];
+        let employeesData = [];
+        let pendingOrdersData = [];
+        let grabbedOrdersFirebaseData = [];
+        let deliveryLocationsData = []; // New data holder
+        let couponsData = []; // New data holder for coupons
+
+        // Employee session-specific data (not persisted in Firebase per session)
+        let employeeSessionGrabbedOrders = []; // Orders grabbed by current employee in THIS session
+
+        // --- Seed Initial Data for Products, Homepage Content, Employees, and Delivery Locations if database is empty ---
+        function seedInitialData() {
+            productsRef.once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    const initialProducts = [
+                        { name: 'Smartphone Pro X', price: 99999.00, image: 'https://placehold.co/400x300/a3e635/000000?text=Smartphone+Pro+X', quantity: 50, details: 'Latest model with advanced camera and long battery life. Features include an OLED display, powerful processor, and dual camera system.' },
+                        { name: 'Wireless Earbuds Z', price: 12999.00, image: 'https://placehold.co/400x300/34d399/000000?text=Earbuds+Z', quantity: 120, details: 'Noise-cancelling, comfortable fit, and crystal clear audio. Perfect for workouts and daily commutes with long battery life.' },
+                        { name: 'Smart Watch Series 7', price: 24999.00, image: 'https://placehold.co/400x300/22d3ee/000000?text=Smart+Watch+7', quantity: 75, details: 'Track fitness, receive notifications, and make calls from your wrist. Heart rate monitoring, GPS, and water resistance included.' },
+                        { name: 'Portable Bluetooth Speaker', price: 7999.00, image: 'https://placehold.co/400x300/60a5fa/000000?text=Bluetooth+Speaker', quantity: 90, details: 'Compact, powerful sound with extended bass and waterproof design. Ideal for outdoor adventures or home use.' },
+                        { name: 'Gaming Laptop Ultimate', price: 179999.00, image: 'https://placehold.co/400x300/f87171/000000?text=Gaming+Laptop', quantity: 30, details: 'High-performance laptop for demanding games and creative tasks. Equipped with latest GPU, fast SSD, and high-refresh-rate display.' },
+                        { name: 'VR Headset Immersive', price: 49999.00, image: 'https://placehold.co/400x300/fbbf24/000000?text=VR+Headset', quantity: 40, details: 'Next-gen virtual reality experience with stunning visuals and haptic feedback. Explore new worlds and games and creative tasks.' },
+                        { name: 'Drone Explorer Pro', price: 34999.00, image: 'https://placehold.co/400x300/a78bfa/000000?text=Drone+Pro', quantity: 25, details: 'Easy-to-fly drone with 4K camera and intelligent flight modes. Perfect for aerial photography and videography.' },
+                        { name: 'Action Camera 4K', price: 19999.00, image: 'https://placehold.co/400x300/c084fc/000000?text=Action+Camera', quantity: 60, details: 'Capture your adventures in stunning 4K resolution, waterproof and durable. Comes with various mounting accessories.' },
+                    ];
+                    initialProducts.forEach(product => {
+                        productsRef.push(product);
+                    });
+                    console.log("Initial products seeded to the database.");
+                    showMessageModal('Initial products added to your Firebase Realtime Database!');
+                }
+            }, (error) => {
+                console.error("Error checking for initial product data:", error);
+            });
+
+            homepageContentRef.once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    const defaultHomepageContent = {
+                        websiteName: "GadgetsHouse",
+                        websiteLogoUrl: "https://placehold.co/40x40/000000/FFFFFF?text=G",
+                        aboutUsText: `গ্যাজেটস হাউস বাংলাদেশের অন্যতম শীর্ষস্থানীয় অনলাইন গ্যাজেট স্টোর। আমরা সর্বশেষ প্রযুক্তির পণ্যসমূহ, যেমন স্মার্টফোন, ল্যাপটপ, গেমিং পিসি, স্মার্টওয়াচ এবং আরও অনেক কিছু সাশ্রয়ী মূল্যে প্রদান করি। আমাদের লক্ষ্য হলো গ্রাহকদের জন্য সেরা কেনাকাটার অভিজ্ঞতা নিশ্চিত করা, যেখানে গুণগত মান এবং নির্ভরযোগ্যতা আমাদের প্রধান অঙ্গীকার।`,
+                        services: [
+                            { icon: 'fas fa-truck-fast', title: 'দ্রুত ডেলিভারি', description: 'দেশজুড়ে দ্রুততম সময়ে পণ্য পৌঁছে দেই।' },
+                            { icon: 'fas fa-handshake', title: 'বিশ্বস্ত গ্রাহক সেবা', description: '২৪/৭ কাস্টমার সাপোর্ট এবং বিক্রয়োত্তর সেবা।' },
+                            { icon: 'fas fa-shield-alt', title: 'নিরাপদ পেমেন্ট', description: 'সব লেনদেন সুরক্ষিত ও এনক্রিপ্টেড।' }
+                        ],
+                        contact: {
+                            address: '১২৩, টেকনোলজি এভিনিউ, ঢাকা, বাংলাদেশ',
+                            phone: '+880 123 456789',
+                            email: 'helpline.gadgets@gmail.com',
+                            facebook: 'https://facebook.com/gadgetshousebd',
+                            twitter: 'https://twitter.com',
+                            instagram: 'https://instagram.com',
+                            linkedin: 'https://linkedin.com',
+                            whatsapp: 'https://wa.me/+880123456789',
+                            tiktok: 'https://tiktok.com',
+                            youtube: 'https://youtube.com'
+                        },
+                        paymentSettings: { // Keeping this for admin settings, though not used in frontend anymore
+                            bkash: '01791774566',
+                            rocket: '017917745668',
+                            nagad: '01727393466'
+                        }
+                    };
+                    homepageContentRef.set(defaultHomepageContent)
+                        .then(() => {
+                            console.log("Default homepage content seeded.");
+                        })
+                        .catch(error => {
+                            console.error("Error seeding homepage content:", error);
+                        });
+                }
+            }, (error) => {
+                console.error("Error checking for initial homepage content:", error);
+            });
+            
+            employeesRef.once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    const defaultEmployee = {
+                        name: "Employee One",
+                        username: "emp1",
+                        password: "pass123", // Insecure for production!
+                        email: "employee.one@example.com",
+                        role: "Delivery Agent"
+                    };
+                    employeesRef.push(defaultEmployee);
+                    console.log("Default employee seeded to the database.");
+                }
+            });
+
+            deliveryLocationsRef.once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    const defaultLocations = [
+                        { name: 'Dhaka (Inside City)', charge: 60 },
+                        { name: 'Dhaka (Outside City)', charge: 100 },
+                        { name: 'Other Districts', charge: 150 }
+                    ];
+                    defaultLocations.forEach(loc => {
+                        deliveryLocationsRef.push(loc);
+                    });
+                    console.log("Default delivery locations seeded.");
+                }
+            });
+
+            couponsRef.once('value', (snapshot) => {
+                if (!snapshot.exists()) {
+                    const defaultCoupons = [
+                        { code: 'SAVE10', discountPercent: 10, isActive: true },
+                        { code: 'FREEDELIVERY', discountPercent: 100, isActive: true } // This will be applied to product price as per requirement, not delivery.
+                    ];
+                    defaultCoupons.forEach(coupon => {
+                        couponsRef.push(coupon);
+                    });
+                    console.log("Default coupons seeded.");
+                }
+            });
+        }
+
+
+        // --- SPA Navigation Logic ---
+        const pageSections = document.querySelectorAll('.page-section');
+        const navLinks = document.querySelectorAll('[data-page]');
+        const humanIconMenuToggle = document.getElementById('human-icon-menu-toggle');
+        const loginMenu = document.getElementById('login-menu');
+        const loginMenuButtons = document.querySelectorAll('#login-menu button');
+
+        const loginFormTitle = document.getElementById('login-form-title');
+        const userLoginSection = document.getElementById('user-login-section');
+        const employeeLoginSection = document.getElementById('employee-login-section');
+        const adminLoginSection = document.getElementById('admin-login-section');
+
+        const userLoginForm = document.getElementById('user-login-form');
+        const employeeLoginForm = document.getElementById('employee-login-form');
+        const adminLoginForm = document.getElementById('admin-login-form');
+
+        const showRegisterLink = document.getElementById('show-register');
+        const showLoginLink = document.getElementById('show-login');
+        const userRegisterForm = document.getElementById('user-register-form');
+
+        const logoutUserBtn = document.getElementById('logout-user');
+        const logoutEmployeeBtn = document.getElementById('logout-employee');
+        const logoutAdminBtn = document.getElementById('logout-admin');
+
+        const adminNavButtons = document.querySelectorAll('.admin-nav-btn');
+        const adminSubSections = document.querySelectorAll('.admin-sub-section');
+        const followUsLink = document.getElementById('follow-us-link');
+        const socialIcons = document.querySelectorAll('.social-icon');
+
+        function showPage(pageId) {
+            pageSections.forEach(section => {
+                section.classList.remove('active');
+            });
+            const targetPage = document.getElementById(pageId + '-page');
+            if (targetPage) {
+                targetPage.classList.add('active');
+            }
+            loginMenu.classList.remove('active'); // Hide login menu when navigating
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showAdminSubPage(subPageId) {
+            adminSubSections.forEach(section => {
+                section.classList.remove('active');
+            });
+            const targetSubPage = document.getElementById(subPageId + '-sub-section');
+            if (targetSubPage) {
+                targetSubPage.classList.add('active');
+            }
+            adminNavButtons.forEach(btn => {
+                if (btn.dataset.adminPage === subPageId) {
+                    btn.classList.add('bg-opacity-75');
+                } else {
+                    btn.classList.remove('bg-opacity-75');
+                }
+            });
+            // Re-render lists/settings when their respective admin sub-page is shown
+            if (subPageId === 'user-manage') renderUsersAdminPanel();
+            if (subPageId === 'employee-manage') renderEmployeesAdminPanel();
+            if (subPageId === 'admin-settings') renderAdminSettings();
+            if (subPageId === 'order-manage') renderAdminOrderManagement();
+        }
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const pageId = link.dataset.page;
+                if (pageId) {
+                    showPage(pageId);
+                }
+            });
+        });
+
+        adminNavButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const adminPageId = button.dataset.adminPage;
+                if (adminPageId) {
+                    showAdminSubPage(adminPageId);
+                }
+            });
+        });
+
+        // --- Custom Login Menu Toggle ---
+        humanIconMenuToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginMenu.classList.toggle('active');
+            // Reset login forms visibility when menu opens
+            userLoginSection.classList.add('hidden');
+            employeeLoginSection.classList.add('hidden');
+            adminLoginSection.classList.add('hidden');
+            loginFormTitle.textContent = 'Login';
+        });
+
+        // Hide login menu if clicked outside
+        document.addEventListener('click', (e) => {
+            if (!humanIconMenuToggle.contains(e.target) && !loginMenu.contains(e.target) && !e.target.closest('.custom-modal-overlay')) {
+                loginMenu.classList.remove('active');
+            }
+        });
+
+        loginMenuButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const loginType = e.currentTarget.dataset.loginType;
+                showPage('login');
+                
+                // Hide all login forms initially
+                userLoginSection.classList.add('hidden');
+                employeeLoginSection.classList.add('hidden');
+                adminLoginSection.classList.add('hidden');
+
+                // Show the relevant login form
+                if (loginType === 'user') {
+                    userLoginSection.classList.remove('hidden');
+                    userRegisterForm.classList.add('hidden'); // Ensure register form is hidden by default
+                    userLoginForm.classList.remove('hidden'); // Ensure login form is shown
+                    loginFormTitle.textContent = 'User Login';
+                } else if (loginType === 'employee') {
+                    employeeLoginSection.classList.remove('hidden');
+                    loginFormTitle.textContent = 'Employee Login';
+                } else if (loginType === 'admin') {
+                    adminLoginSection.classList.remove('hidden');
+                    loginFormTitle.textContent = 'Admin Login';
+                }
+                loginMenu.classList.remove('active'); // Hide the login type menu
+            });
+        });
+
+
+        // --- "Follow Us" Link and Social Icon Highlight ---
+        followUsLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const footer = document.getElementById('footer');
+            if (footer) {
+                footer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                socialIcons.forEach(icon => {
+                    icon.classList.add('social-icon-highlight');
+                    setTimeout(() => {
+                        icon.classList.remove('social-icon-highlight');
+                    }, 1000); // Remove highlight after animation
+                });
+            }
+        });
+
+
+        // --- Promo Banner Slider Logic ---
+        let currentSlide = 0;
+        let promoBannersData = [];
+        let sliderInterval;
+
+        function renderPromoBanners() {
+            const promoSlider = document.getElementById('promo-slider');
+            const promoDots = document.getElementById('promo-dots');
+            promoSlider.innerHTML = '';
+            promoDots.innerHTML = '';
+
+            if (promoBannersData.length === 0) {
+                promoSlider.innerHTML = '<div class="w-full flex-shrink-0 bg-gray-400 flex items-center justify-center text-white text-xl font-bold rounded-xl">No Promotional Banners Available</div>';
+                return;
+            }
+
+            promoBannersData.forEach((banner, index) => {
+                const slideDiv = document.createElement('div');
+                slideDiv.className = 'w-full flex-shrink-0 promo-banner-item';
+                slideDiv.style.backgroundImage = `url('${banner.image || 'https://placehold.co/1200x400/CCCCCC/000000?text=No+Banner+Image'}')`;
+                slideDiv.innerHTML = `<p class="text-white text-3xl font-bold promo-banner-text">${banner.text || 'No Text'}</p>`;
+                promoSlider.appendChild(slideDiv);
+
+                const dotButton = document.createElement('button');
+                dotButton.className = 'slider-dot w-3 h-3 bg-white rounded-full opacity-50 focus:outline-none';
+                dotButton.dataset.index = index;
+                dotButton.addEventListener('click', () => {
+                    currentSlide = index;
+                    updateSlider();
+                    resetSliderInterval();
+                });
+                promoDots.appendChild(dotButton);
+            });
+            currentSlide = 0;
+            updateSlider();
+            resetSliderInterval();
+        }
+
+        function updateSlider() {
+            const slider = document.getElementById('promo-slider');
+            if (!slider || promoBannersData.length === 0) return;
+            slider.style.transform = `translateX(-${currentSlide * 100}%)`;
+            document.querySelectorAll('.slider-dot').forEach((dot, index) => {
+                if (index === currentSlide) {
+                    dot.classList.add('opacity-100');
+                    dot.classList.remove('opacity-50');
+                } else {
+                    dot.classList.add('opacity-50');
+                    dot.classList.remove('opacity-100');
+                }
+            });
+        }
+
+        function nextSlide() {
+            if (promoBannersData.length === 0) return;
+            currentSlide = (currentSlide + 1) % promoBannersData.length;
+            updateSlider();
+        }
+
+        function resetSliderInterval() {
+            clearInterval(sliderInterval);
+            if (promoBannersData.length > 1) {
+                sliderInterval = setInterval(nextSlide, 5000);
+            }
+        }
+
+        // --- Homepage Content Rendering ---
+        let currentHomepageContent = {}; // To store current content fetched from Firebase
+
+        function renderHomepageContent(content) {
+            // Update Website Name and Logo in Header & Footer
+            document.getElementById('website-title').textContent = content.websiteName + " - Your Tech Destination" || 'Gadgets House - Your Tech Destination';
+            document.getElementById('website-name').textContent = content.websiteName || 'GadgetsHouse';
+            document.getElementById('website-logo').src = content.websiteLogoUrl || 'https://placehold.co/40x40/000000/FFFFFF?text=G';
+            document.getElementById('website-logo').onerror = function(){this.onerror=null;this.src='https://placehold.co/40x40/000000/FFFFFF?text=G';};
+            document.getElementById('footer-website-name').textContent = content.websiteName || 'GadgetsHouse';
+
+
+            document.getElementById('about-us-text').textContent = content.aboutUsText || '';
+
+            const servicesGrid = document.getElementById('services-grid');
+            servicesGrid.innerHTML = '';
+            (content.services || []).forEach(service => {
+                servicesGrid.innerHTML += `
+                    <div class="p-4 bg-white rounded-lg shadow-md">
+                        <i class="${service.icon || 'fas fa-question-circle'} text-4xl text-blue-600 mb-3"></i>
+                        <h4 class="text-xl font-semibold text-gray-700 mb-2">${service.title || 'Service Title'}</h4>
+                        <p class="text-gray-600">${service.description || 'Service description.'}</p>
+                    </div>
+                `;
+            });
+
+            const contact = content.contact || {};
+            document.getElementById('contact-address').textContent = contact.address || '';
+            document.getElementById('contact-phone').textContent = contact.phone || '';
+            document.getElementById('contact-email').textContent = contact.email || '';
+            document.getElementById('contact-facebook').textContent = contact.facebook || '';
+            document.getElementById('contact-facebook').href = contact.facebook || '#';
+
+            // Update footer social links dynamically
+            document.getElementById('footer-facebook-link').href = contact.facebook || '#';
+            document.getElementById('footer-twitter-link').href = contact.twitter || '#';
+            document.getElementById('footer-instagram-link').href = contact.instagram || '#';
+            document.getElementById('footer-linkedin-link').href = contact.linkedin || '#';
+            document.getElementById('footer-whatsapp-link').href = contact.whatsapp || '#';
+            document.getElementById('footer-tiktok-link').href = contact.tiktok || '#';
+            document.getElementById('footer-youtube-link').href = contact.youtube || '#';
+
+
+            promoBannersData = content.promoBanners || [];
+            renderPromoBanners();
+        }
+
+
+        // --- Products Page Logic (Frontend) ---
+        const productDetailModal = document.getElementById('product-detail-modal');
+
+        function openProductDetailModal(productId) {
+            const product = productsData.find(p => p.id === productId);
+            if (!product) {
+                showMessageModal("Product details not found.");
+                return;
+            }
+
+            document.getElementById('detail-product-image').src = product.image || 'https://placehold.co/400x300/CCCCCC/000000?text=No+Image';
+            document.getElementById('detail-product-image').onerror = function(){this.onerror=null;this.src='https://placehold.co/400x300/CCCCCC/000000?text=No+Image';};
+            document.getElementById('detail-product-name').textContent = product.name;
+            document.getElementById('detail-product-price').textContent = `BDT ${product.price ? product.price.toFixed(2) : '0.00'}`;
+            document.getElementById('detail-product-quantity').textContent = `Available ${product.quantity || 0} pcs`;
+            document.getElementById('detail-product-details').textContent = product.details || 'No additional details provided.';
+            document.querySelector('.add-to-cart-btn-detail').dataset.productId = product.id;
+
+            productDetailModal.classList.remove('hidden');
+        }
+
+        function hideProductDetailModal() {
+            productDetailModal.classList.add('hidden');
+        }
+
+
+        function renderProducts() {
+            const productListDiv = document.getElementById('product-list');
+            productListDiv.innerHTML = '';
+            if (productsData.length === 0) {
+                productListDiv.innerHTML = '<p class="text-center text-gray-500 text-lg col-span-full">No products found. Add some from the Admin Panel!</p>';
+                return;
+            }
+            productsData.forEach(product => {
+                const productCard = `
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden transform transition-transform duration-300 hover:scale-105 cursor-pointer product-card-clickable" data-product-id="${product.id}">
+                        <img src="${product.image || 'https://placehold.co/400x300/CCCCCC/000000?text=No+Image'}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/CCCCCC/000000?text=No+Image';" alt="${product.name}" class="w-full h-48 object-cover">
+                        <div class="p-4">
+                            <h3 class="text-xl font-semibold text-gray-800 mb-2">${product.name}</h3>
+                            <p class="text-lg text-gray-600 mb-1">Available ${product.quantity || 0} pcs</p>
+                            <p class="text-lg text-gray-700 text-sm mb-4">${product.details ? product.details.substring(0, 70) + '...' : 'No details provided.'}</p>
+                            <p class="text-2xl font-bold text-teal-600 mb-4">BDT ${product.price ? product.price.toFixed(2) : '0.00'}</p>
+                            <div class="flex space-x-2">
+                                <button class="add-to-cart-btn bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-full flex-1 transition duration-300 ease-in-out" data-product-id="${product.id}">
+                                    <i class="fas fa-cart-plus mr-1"></i> Add to Cart
+                                </button>
+                                <button class="buy-now-btn bg-teal-600 hover:bg-teal-700 text-white text-sm px-4 py-2 rounded-full flex-1 transition duration-300 ease-in-out" data-product-id="${product.id}">
+                                    <i class="fas fa-money-bill-wave mr-1"></i> Buy Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                productListDiv.innerHTML += productCard;
+            });
+
+            document.querySelectorAll('.product-card-clickable').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('button')) return; // Avoid opening modal if a button inside the card was clicked
+                    const productId = card.dataset.productId;
+                    openProductDetailModal(productId);
+                });
+            });
+
+            document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.currentTarget.dataset.productId;
+                    addToCart(productId);
+                    showMessageModal(`${productsData.find(p => p.id === productId).name} added to cart!`);
+                });
+            });
+            document.querySelectorAll('.buy-now-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.currentTarget.dataset.productId;
+                    addToCart(productId);
+                    showPage('cart');
+                });
+            });
+            document.querySelector('.add-to-cart-btn-detail').onclick = (e) => {
+                const productId = e.currentTarget.dataset.productId;
+                addToCart(productId);
+                showMessageModal(`${productsData.find(p => p.id === productId).name} added to cart!`);
+                hideProductDetailModal();
+            };
+        }
+
+        // --- Cart Logic ---
+        function updateCartCount() {
+            const cartCountSpan = document.getElementById('cart-count');
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            if (totalItems > 0) {
+                cartCountSpan.textContent = totalItems;
+                cartCountSpan.classList.remove('hidden');
+            } else {
+                cartCountSpan.classList.add('hidden');
+            }
+        }
+
+        function addToCart(productId) {
+            const product = productsData.find(p => p.id === productId);
+            if (!product) return;
+
+            const existingCartItem = cart.find(item => item.productId === productId);
+            if (existingCartItem) {
+                existingCartItem.quantity++;
+            } else {
+                cart.push({
+                    productId: product.id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: 1
+                });
+            }
+            updateCartCount();
+            renderCartItems();
+        }
+
+        function updateCartItemQuantity(productId, newQuantity) {
+            const itemIndex = cart.findIndex(item => item.productId === productId);
+            if (itemIndex > -1) {
+                if (newQuantity <= 0) {
+                    cart.splice(itemIndex, 1);
+                } else {
+                    cart[itemIndex].quantity = newQuantity;
+                }
+            }
+            updateCartCount();
+            renderCartItems();
+        }
+
+        function renderCartItems() {
+            const cartItemsDiv = document.getElementById('cart-items');
+            const cartTotalSpan = document.getElementById('cart-total');
+            cartItemsDiv.innerHTML = '';
+            let total = 0;
+
+            if (cart.length === 0) {
+                cartItemsDiv.innerHTML = '<p class="text-center text-gray-500 text-lg">Your cart is empty.</p>';
+                cartTotalSpan.textContent = 'BDT 0.00';
+                return;
+            }
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                const cartItemHtml = `
+                    <div class="flex flex-col sm:flex-row items-center justify-between border-b border-gray-200 pb-4 py-2">
+                        <div class="flex items-center space-x-4 mb-2 sm:mb-0">
+                            <span class="text-xl font-semibold text-gray-800">${item.name}</span>
+                            <span class="text-gray-600">(BDT ${item.price ? item.price.toFixed(2) : '0.00'} each)</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <button class="quantity-btn bg-gray-200 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-300 transition-colors" data-product-id="${item.productId}" data-action="decrease">-</button>
+                            <span class="text-xl font-bold text-gray-800">${item.quantity}</span>
+                            <button class="quantity-btn bg-gray-200 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-300 transition-colors" data-product-id="${item.productId}" data-action="increase">+</button>
+                            <span class="text-xl font-bold text-teal-600">BDT ${itemTotal.toFixed(2)}</span>
+                            <button class="remove-from-cart-btn text-red-500 hover:text-red-700 text-2xl" data-product-id="${item.productId}"><i class="fas fa-times-circle"></i></button>
+                        </div>
+                    </div>
+                `;
+                cartItemsDiv.innerHTML += cartItemHtml;
+            });
+            cartTotalSpan.textContent = `BDT ${total.toFixed(2)}`;
+
+            document.querySelectorAll('.quantity-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.currentTarget.dataset.productId;
+                    const action = e.currentTarget.dataset.action;
+                    const item = cart.find(i => i.productId === productId);
+                    if (item) {
+                        const newQuantity = action === 'increase' ? item.quantity + 1 : item.quantity - 1;
+                        updateCartItemQuantity(productId, newQuantity);
+                    }
+                });
+            });
+            document.querySelectorAll('.remove-from-cart-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.currentTarget.dataset.productId;
+                    updateCartItemQuantity(productId, 0);
+                });
+            });
+        }
+
+        // --- Checkout Page Logic (Order Placement) ---
+        const proceedToCheckoutBtn = document.getElementById('proceed-to-checkout-btn');
+        const finalPlaceOrderBtn = document.getElementById('final-place-order-btn');
+        const mobileBankingDetailsDiv = document.getElementById('mobile-banking-details');
+        const paymentMethodRadios = document.querySelectorAll('input[name="payment_method"]'); // Still kept for COD radio
+        const deliveryLocationSelect = document.getElementById('delivery-location-select');
+        const couponInput = document.getElementById('coupon-input');
+        const applyCouponBtn = document.getElementById('apply-coupon-btn');
+        const couponDiscountDisplay = document.getElementById('coupon-discount-display');
+        const couponErrorDisplay = document.getElementById('coupon-error-display');
+
+
+        proceedToCheckoutBtn.addEventListener('click', () => {
+            if (cart.length === 0) {
+                showMessageModal('Your cart is empty. Please add items before proceeding to checkout.');
+                return;
+            }
+            if (!currentUser) {
+                showMessageModal('Please login as a user before placing an order.');
+                showPage('login'); // Redirect to login page
+                document.getElementById('user-login-section').classList.remove('hidden'); // Ensure user login is shown
+                document.getElementById('employee-login-section').classList.add('hidden');
+                document.getElementById('admin-login-section').classList.add('hidden');
+                loginFormTitle.textContent = 'User Login Required';
+                return;
+            }
+            showPage('checkout');
+            // Select default delivery location if available
+            if (deliveryLocationsData.length > 0) {
+                const defaultLocation = deliveryLocationsData.find(loc => loc.name === currentUser.deliveryLocation) || deliveryLocationsData[0];
+                deliveryLocationSelect.value = defaultLocation.id;
+                selectedDeliveryLocation = defaultLocation;
+                currentDeliveryCharge = defaultLocation.charge;
+            } else {
+                deliveryLocationSelect.value = '';
+                selectedDeliveryLocation = null;
+                currentDeliveryCharge = 0;
+            }
+            // Reset coupon state on proceeding to checkout
+            appliedCoupon = null;
+            couponInput.value = '';
+            couponDiscountDisplay.classList.add('hidden');
+            couponErrorDisplay.classList.add('hidden');
+            updateCheckoutSummaryAndDeliveryCharge(); // Update based on initial selection
+        });
+
+        // Event listener for delivery location change
+        deliveryLocationSelect.addEventListener('change', () => {
+            const selectedLocationId = deliveryLocationSelect.value;
+            selectedDeliveryLocation = deliveryLocationsData.find(loc => loc.id === selectedLocationId);
+            currentDeliveryCharge = selectedDeliveryLocation ? selectedDeliveryLocation.charge : 0;
+            updateCheckoutSummaryAndDeliveryCharge();
+        });
+
+        // Event listener for applying coupon
+        applyCouponBtn.addEventListener('click', () => {
+            const couponCode = couponInput.value.trim().toUpperCase();
+            couponErrorDisplay.classList.add('hidden');
+            couponDiscountDisplay.classList.add('hidden');
+
+            if (couponCode === '') {
+                couponErrorDisplay.textContent = 'Please enter a coupon code.';
+                couponErrorDisplay.classList.remove('hidden');
+                appliedCoupon = null; // Clear any previously applied coupon
+                updateCheckoutSummaryAndDeliveryCharge();
+                return;
+            }
+
+            const foundCoupon = couponsData.find(c => c.code === couponCode && c.isActive);
+
+            if (foundCoupon) {
+                appliedCoupon = foundCoupon;
+                couponDiscountDisplay.textContent = `Discount Applied: -BDT ${((cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) * appliedCoupon.discountPercent) / 100).toFixed(2)}`;
+                couponDiscountDisplay.classList.remove('hidden');
+                showMessageModal(`Coupon "${couponCode}" applied successfully!`);
+            } else {
+                appliedCoupon = null; // Clear any previously applied coupon
+                couponErrorDisplay.textContent = 'Invalid or expired coupon code.';
+                couponErrorDisplay.classList.remove('hidden');
+                showMessageModal('Invalid or expired coupon code.');
+            }
+            updateCheckoutSummaryAndDeliveryCharge();
+        });
+
+
+        function updateCheckoutSummaryAndDeliveryCharge() {
+            // Ensure mobile banking details are always hidden as per request
+            mobileBankingDetailsDiv.classList.add('hidden');
+
+            let subTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let discountAmount = 0;
+
+            if (appliedCoupon && appliedCoupon.discountPercent > 0) {
+                discountAmount = (subTotal * appliedCoupon.discountPercent) / 100;
+                subTotal -= discountAmount; // Apply discount to product subtotal
+            }
+
+            const total = subTotal + currentDeliveryCharge;
+
+            const checkoutSummaryDiv = document.getElementById('checkout-summary');
+            checkoutSummaryDiv.innerHTML = '';
+
+            if (cart.length === 0) {
+                checkoutSummaryDiv.innerHTML = '<p class="text-center text-gray-500 text-lg">Your cart is empty. Please add items to proceed.</p>';
+                return;
+            }
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                checkoutSummaryDiv.innerHTML += `
+                    <div class="flex justify-between text-lg text-gray-700">
+                        <span>${item.name} (x${item.quantity})</span>
+                        <span>BDT ${itemTotal.toFixed(2)}</span>
+                    </div>
+                `;
+            });
+            checkoutSummaryDiv.innerHTML += `
+                <div class="flex justify-between text-lg text-gray-700 mt-2 pt-2 border-t border-gray-200">
+                    <span>Subtotal:</span>
+                    <span>BDT ${(subTotal + discountAmount).toFixed(2)}</span>
+                </div>
+            `;
+            if (discountAmount > 0) {
+                 checkoutSummaryDiv.innerHTML += `
+                    <div class="flex justify-between text-lg text-green-600">
+                        <span>Coupon Discount (${appliedCoupon.code} - ${appliedCoupon.discountPercent}%):</span>
+                        <span>-BDT ${discountAmount.toFixed(2)}</span>
+                    </div>
+                 `;
+            }
+            checkoutSummaryDiv.innerHTML += `
+                <div class="flex justify-between text-lg text-gray-700">
+                    <span>Delivery Charge (${selectedDeliveryLocation ? selectedDeliveryLocation.name : 'N/A'}):</span>
+                    <span>BDT ${currentDeliveryCharge.toFixed(2)}</span>
+                </div>
+                <div class="flex justify-between text-xl font-bold text-gray-800 border-t border-gray-300 pt-3 mt-3">
+                    <span>Grand Total:</span>
+                    <span>BDT ${total.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+
+        finalPlaceOrderBtn.addEventListener('click', () => {
+            if (cart.length === 0) {
+                showMessageModal('Cannot place an empty order. Please add items to your cart.');
+                return;
+            }
+            if (!selectedDeliveryLocation) {
+                showMessageModal('Please select a delivery location.');
+                return;
+            }
+
+            let subTotalForOrder = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            let discountAmountForOrder = 0;
+            if (appliedCoupon && appliedCoupon.discountPercent > 0) {
+                discountAmountForOrder = (subTotalForOrder * appliedCoupon.discountPercent) / 100;
+                subTotalForOrder -= discountAmountForOrder;
+            }
+            const orderTotal = subTotalForOrder + currentDeliveryCharge;
+
+            const order = {
+                orderId: 'ORD-' + Date.now(),
+                customer: currentUser ? {
+                    id: currentUser.id,
+                    name: currentUser.name,
+                    email: currentUser.email,
+                    phone: currentUser.phone,
+                    deliveryLocation: selectedDeliveryLocation.name // Save selected location name
+                } : {
+                    id: 'guest-' + Date.now(),
+                    name: 'Guest Customer',
+                    email: 'guest@example.com',
+                    phone: 'N/A',
+                    deliveryLocation: selectedDeliveryLocation.name
+                },
+                items: cart.map(item => ({
+                    productId: item.productId,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity
+                })),
+                subTotalBeforeDiscount: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+                couponApplied: appliedCoupon ? { code: appliedCoupon.code, discountPercent: appliedCoupon.discountPercent } : null,
+                discountAmount: discountAmountForOrder,
+                subTotal: subTotalForOrder, // Subtotal after discount
+                deliveryCharge: currentDeliveryCharge, // Save the actual delivery charge
+                total: orderTotal,
+                paymentMethod: 'COD', // Always COD
+                transactionId: '', // Empty for COD
+                paidFromNumber: '', // Empty for COD
+                paymentAmount: orderTotal, // Assume full payment on COD
+                status: 'Pending',
+                placedAt: new Date().toISOString()
+            };
+
+            pendingOrdersRef.push(order)
+                .then(() => {
+                    showMessageModal('Order placed successfully! Employees have been notified.');
+                    console.log('Order placed:', order);
+                    console.log('--- SIMULATED EMPLOYEE EMAIL NOTIFICATION: New order received! ---');
+                    cart = []; // Clear cart after order
+                    updateCartCount();
+                    showPage('home'); // Go back to home or a thank you page
+                })
+                .catch(error => {
+                    console.error("Error placing order: ", error);
+                    showMessageModal("Failed to place order: " + error.message);
+                });
+        });
+
+
+        function renderCheckoutSummary() { // This function is effectively replaced by updateCheckoutSummaryAndDeliveryCharge
+            // Keeping for consistency but it's now called updateCheckoutSummaryAndDeliveryCharge
+            updateCheckoutSummaryAndDeliveryCharge();
+        }
+
+        // --- Login/Register Logic ---
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            userLoginForm.classList.add('hidden');
+            userRegisterForm.classList.remove('hidden');
+        });
+
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            userRegisterForm.classList.add('hidden');
+            userLoginForm.classList.remove('hidden');
+        });
+
+        userLoginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('user-email').value;
+            const password = document.getElementById('user-password').value; // Password is not validated in this demo
+            
+            const foundUser = registeredUsersData.find(u => u.email === email);
+            if (foundUser) {
+                currentUser = foundUser;
+                saveLoginState();
+                showMessageModal('User login simulated! You are now logged in as a regular user.');
+                renderUserProfile();
+                showPage('user-dashboard');
+            } else {
+                showMessageModal('User not found. Please register or check your email.');
+            }
+        });
+
+        userRegisterForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('register-name').value;
+            const phone = document.getElementById('register-phone').value;
+            const whatsapp = document.getElementById('register-whatsapp').value;
+            const email = document.getElementById('register-email').value;
+            const deliveryLocation = document.getElementById('register-delivery-location').value; // User enters free text
+            const password = document.getElementById('register-password').value;
+
+            if (registeredUsersData.some(u => u.email === email)) {
+                showMessageModal('This email is already registered. Please log in.');
+                return;
+            }
+
+            const newUserRef = registeredUsersRef.push();
+            newUserRef.set({
+                name: name,
+                phone: phone,
+                whatsapp: whatsapp,
+                email: email,
+                deliveryLocation: deliveryLocation,
+                registeredAt: new Date().toLocaleDateString(),
+                password: password // Storing password insecurely for demo. DO NOT do this in production!
+            })
+            .then(() => {
+                console.log('User registered successfully (persistent)!');
+                showMessageModal('Registration successful! Please log in with your new account.');
+                userRegisterForm.reset();
+                showPage('login');
+                userRegisterForm.classList.add('hidden');
+                userLoginForm.classList.remove('hidden');
+            })
+            .catch((error) => {
+                console.error("Error registering user: ", error);
+                showMessageModal("Registration failed: " + error.message + ". Check Firebase rules for 'registeredUsers'.");
+            });
+        });
+
+        employeeLoginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('employee-username').value;
+            const password = document.getElementById('employee-password').value;
+
+            const foundEmployee = employeesData.find(emp => emp.username === username && emp.password === password);
+
+            if (foundEmployee) {
+                currentEmployee = foundEmployee;
+                saveLoginState();
+                showMessageModal(`Employee login successful! Welcome, ${currentEmployee.name}.`);
+                renderEmployeeDashboard();
+                showPage('employee-dashboard');
+            } else {
+                showMessageModal('Invalid Employee Username or Password. Please try again.');
+                console.log('Employee login failed.');
+            }
+        });
+
+        adminLoginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = document.getElementById('admin-username').value;
+            const password = document.getElementById('admin-password').value;
+
+            if (username === 'gadgets' && password === '13585425') {
+                currentAdmin = { username: username }; // Store minimal admin info
+                saveLoginState();
+                console.log('Admin login successful (simulated)!');
+                showMessageModal('Admin login successful! Welcome to the Admin Panel.');
+                showPage('admin-dashboard');
+                showAdminSubPage('product-manage');
+            } else {
+                showMessageModal('Invalid Admin Username or Password. Please try again.');
+                console.log('Admin login failed.');
+            }
+        });
+
+        logoutUserBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            clearLoginState();
+            console.log('User logged out');
+            showMessageModal('You have been logged out.');
+            showPage('home');
+        });
+
+        logoutEmployeeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            clearLoginState();
+            employeeSessionGrabbedOrders = []; // Clear grabbed orders for the session
+            console.log('Employee logged out');
+            showMessageModal('You have been logged out from the Employee Dashboard.');
+            showPage('home');
+        });
+
+        logoutAdminBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            clearLoginState();
+            console.log('Admin logged out');
+            showMessageModal('You have been logged out from the Admin Panel.');
+            showPage('home');
+        });
+
+        // --- User Dashboard Rendering ---
+        function renderUserProfile() {
+            if (currentUser) {
+                document.getElementById('user-profile-name').textContent = currentUser.name || 'N/A';
+                document.getElementById('user-profile-email').textContent = currentUser.email || 'N/A';
+                document.getElementById('user-profile-phone').textContent = currentUser.phone || 'N/A';
+                document.getElementById('user-profile-whatsapp').textContent = currentUser.whatsapp || 'N/A';
+                document.getElementById('user-profile-location').textContent = currentUser.deliveryLocation || 'N/A';
+                document.getElementById('user-profile-registered-at').textContent = currentUser.registeredAt || 'N/A';
+            } else {
+                // Clear fields if no user is logged in
+                document.getElementById('user-profile-name').textContent = '';
+                document.getElementById('user-profile-email').textContent = '';
+                document.getElementById('user-profile-phone').textContent = '';
+                document.getElementById('user-profile-whatsapp').textContent = '';
+                document.getElementById('user-profile-location').textContent = '';
+                document.getElementById('user-profile-registered-at').textContent = '';
+            }
+        }
+
+        // --- Employee Dashboard Logic ---
+        function renderEmployeeDashboard() {
+            if (!currentEmployee) {
+                document.getElementById('employee-daily-income').textContent = '0.00';
+                document.getElementById('employee-weekly-income').textContent = '0.00';
+                document.getElementById('employee-grabbed-orders').innerHTML = '<p class="text-gray-600">No orders grabbed yet.</p>';
+                return;
+            }
+
+            // Simulate income (not persistent)
+            document.getElementById('employee-daily-income').textContent = (Math.random() * 100 + 50).toFixed(2); // Random daily income
+            document.getElementById('employee-weekly-income').textContent = (Math.random() * 500 + 200).toFixed(2); // Random weekly income
+
+            // Render grabbed orders for current session
+            const grabbedOrdersDiv = document.getElementById('employee-grabbed-orders');
+            grabbedOrdersDiv.innerHTML = '';
+            if (employeeSessionGrabbedOrders.length === 0) {
+                grabbedOrdersDiv.innerHTML = '<p class="text-gray-600">No orders grabbed yet.</p>';
+            } else {
+                employeeSessionGrabbedOrders.forEach(order => {
+                    grabbedOrdersDiv.innerHTML += `
+                        <div class="border border-gray-200 p-3 rounded-lg flex items-center justify-between">
+                            <div>
+                                <p class="font-semibold">${order.orderId} - ${order.customer.name}</p>
+                                <p class="text-sm">Total: BDT ${order.total.toFixed(2)} | Status: ${order.status}</p>
+                                <p class="text-sm">Delivery To: ${order.customer.deliveryLocation}</p>
+                            </div>
+                            ${order.status !== 'Delivered' ? 
+                                `<button class="confirm-delivered-btn bg-purple-500 hover:bg-purple-600 text-white text-xs px-3 py-1 rounded-full transition-colors" data-order-firebase-id="${order.firebaseId}" data-order-session-id="${order.orderId}">Delivered</button>` :
+                                `<span class="text-green-600 text-sm font-semibold">DELIVERED</span>`
+                            }
+                        </div>
+                    `;
+                });
+                document.querySelectorAll('.confirm-delivered-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const firebaseId = e.currentTarget.dataset.orderFirebaseId;
+                        const sessionId = e.currentTarget.dataset.orderSessionId;
+                        confirmOrderDelivered(firebaseId, sessionId);
+                    });
+                });
+            }
+
+            // Render pending orders
+            renderPendingOrdersForEmployee();
+        }
+
+        function renderPendingOrdersForEmployee() {
+            const pendingOrdersTableBody = document.getElementById('pending-orders-list');
+            pendingOrdersTableBody.innerHTML = '';
+
+            if (pendingOrdersData.length === 0) {
+                pendingOrdersTableBody.innerHTML = '<tr><td colspan="7" class="py-3 px-6 text-center">No pending orders.</td></tr>';
+                return;
+            }
+
+            pendingOrdersData.forEach(order => {
+                const itemsSummary = order.items.map(item => `${item.name} (x${item.quantity})`).join(', ');
+                const row = `
+                    <tr class="border-b border-gray-200 hover:bg-gray-100">
+                        <td class="py-3 px-6 text-left whitespace-nowrap">${order.orderId}</td>
+                        <td class="py-3 px-6 text-left">${order.customer.name}</td>
+                        <td class="py-3 px-6 text-left">${itemsSummary}</td>
+                        <td class="py-3 px-6 text-left">BDT ${order.total.toFixed(2)}</td>
+                        <td class="py-3 px-6 text-left">${order.customer.deliveryLocation}</td>
+                        <td class="py-3 px-6 text-left">${new Date(order.placedAt).toLocaleString()}</td>
+                        <td class="py-3 px-6 text-left">
+                            <button class="grab-order-btn bg-teal-500 hover:bg-teal-600 text-white text-xs px-3 py-1 rounded-full transition-colors" data-order-id="${order.id}">Grab Order</button>
+                        </td>
+                    </tr>
+                `;
+                pendingOrdersTableBody.innerHTML += row;
+            });
+
+            document.querySelectorAll('.grab-order-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const orderId = e.currentTarget.dataset.orderId;
+                    grabOrder(orderId);
+                });
+            });
+        }
+
+        function grabOrder(orderFirebaseId) {
+            if (!currentEmployee) {
+                showMessageModal('Please log in as an employee to grab orders.');
+                return;
+            }
+
+            pendingOrdersRef.child(orderFirebaseId).once('value')
+                .then(snapshot => {
+                    const orderToGrab = snapshot.val();
+                    if (orderToGrab) {
+                        // Ensure order is not already grabbed
+                        if (orderToGrab.status !== 'Pending') {
+                            showMessageModal(`Order ${orderToGrab.orderId} is no longer pending.`);
+                            return;
+                        }
+
+                        const updatedOrder = {
+                            ...orderToGrab,
+                            status: 'Grabbed',
+                            grabbedBy: {
+                                id: currentEmployee.id,
+                                name: currentEmployee.name,
+                                username: currentEmployee.username,
+                                email: currentEmployee.email // Add employee email
+                            },
+                            grabbedAt: new Date().toISOString()
+                        };
+
+                        // Remove from pending orders
+                        pendingOrdersRef.child(orderFirebaseId).remove()
+                            .then(() => {
+                                // Add to grabbed orders (with its original Firebase ID for easy tracking)
+                                grabbedOrdersRef.child(orderFirebaseId).set(updatedOrder);
+
+                                // Add to current employee's session-based grabbed orders
+                                employeeSessionGrabbedOrders.push({ firebaseId: orderFirebaseId, ...updatedOrder });
+
+                                showMessageModal(`Order ${orderToGrab.orderId} grabbed successfully by ${currentEmployee.name}!`);
+                                console.log(`Order ${orderToGrab.orderId} grabbed by ${currentEmployee.name}`);
+                                renderEmployeeDashboard(); // Re-render to update lists
+                            })
+                            .catch(error => {
+                                console.error("Error grabbing order:", error);
+                                showMessageModal("Failed to grab order: " + error.message);
+                            });
+                    } else {
+                        showMessageModal("Order not found or already grabbed.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching order to grab:", error);
+                    showMessageModal("Error grabbing order: " + error.message);
+                });
+        }
+
+        function confirmOrderDelivered(orderFirebaseId, orderSessionId) {
+            if (!currentEmployee) {
+                showMessageModal('Please log in as an employee to confirm deliveries.');
+                return;
+            }
+
+            grabbedOrdersRef.child(orderFirebaseId).once('value')
+                .then(snapshot => {
+                    const orderToDeliver = snapshot.val();
+                    if (orderToDeliver && orderToDeliver.status === 'Grabbed') {
+                        const updatedOrder = {
+                            ...orderToDeliver,
+                            status: 'Delivered',
+                            deliveredAt: new Date().toISOString()
+                        };
+
+                        grabbedOrdersRef.child(orderFirebaseId).set(updatedOrder)
+                            .then(() => {
+                                // Remove from session-based grabbed orders
+                                employeeSessionGrabbedOrders = employeeSessionGrabbedOrders.filter(order => order.orderId !== orderSessionId);
+
+                                // Simulate income calculation (85% of delivery charge)
+                                // Note: For a real app, this income would likely be calculated based on the delivered order's specific deliveryCharge
+                                const employeeIncome = (orderToDeliver.deliveryCharge || 50) * 0.85; // Use order's delivery charge or default
+                                showMessageModal(`Order ${orderToDeliver.orderId} marked as Delivered! BDT ${employeeIncome.toFixed(2)} added to your income (simulated).`);
+                                console.log(`Order ${orderToDeliver.orderId} delivered by ${currentEmployee.name}. Employee income from delivery: BDT ${employeeIncome.toFixed(2)}`);
+                                renderEmployeeDashboard();
+                            })
+                            .catch(error => {
+                                console.error("Error confirming delivery:", error);
+                                showMessageModal("Failed to confirm delivery: " + error.message);
+                            });
+                    } else {
+                        showMessageModal("Order not found or not in 'Grabbed' status.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching order for delivery confirmation:", error);
+                    showMessageModal("Error confirming delivery: " + error.message);
+                });
+        }
+
+
+        // --- Admin Product Management Logic (Firebase CRUD) ---
+        const addProductForm = document.getElementById('add-product-form');
+        const editProductForm = document.getElementById('edit-product-form');
+        const editProductModal = document.getElementById('edit-product-modal');
+        const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+
+        addProductForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const productName = document.getElementById('new-product-name').value;
+            const productPrice = parseFloat(document.getElementById('new-product-price').value);
+            const productQuantity = parseInt(document.getElementById('new-product-quantity').value);
+            const productDetails = document.getElementById('new-product-details').value;
+            const productImage = document.getElementById('new-product-image').value;
+
+            const newProductRef = productsRef.push();
+            newProductRef.set({
+                name: productName,
+                price: productPrice,
+                quantity: productQuantity,
+                details: productDetails,
+                image: productImage
+            })
+            .then(() => {
+                console.log("Product added successfully!");
+                addProductForm.reset();
+                showMessageModal('Product added successfully!');
+            })
+            .catch((error) => {
+                console.error("Error adding product: ", error);
+                showMessageModal("Failed to add product: " + error.message + ". Please ensure your Firebase Realtime Database security rules allow writes to the 'products' node.");
+            });
+        });
+
+        function renderAdminProductList() {
+            const adminProductListBody = document.getElementById('admin-product-list');
+            adminProductListBody.innerHTML = '';
+            if (productsData.length === 0) {
+                adminProductListBody.innerHTML = '<tr><td colspan="5" class="py-3 px-6 text-center">No products found.</td></tr>';
+                return;
+            }
+            productsData.forEach(product => {
+                const row = `
+                    <tr class="border-b border-gray-200 hover:bg-gray-100">
+                        <td class="py-3 px-6 text-left whitespace-nowrap">${product.id.substring(0, 6)}...</td>
+                        <td class="py-3 px-6 text-left">${product.name}</td>
+                        <td class="py-3 px-6 text-left">BDT ${product.price.toFixed(2)}</td>
+                        <td class="py-3 px-6 text-left">${product.quantity || 0}</td>
+                        <td class="py-3 px-6 text-left">
+                            <div class="flex item-center justify-center">
+                                <button class="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center mr-2 edit-product-btn" data-product-id="${product.id}" title="Edit Product">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center delete-product-btn" data-product-id="${product.id}" title="Delete Product">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                adminProductListBody.innerHTML += row;
+            });
+
+            document.querySelectorAll('.edit-product-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.currentTarget.dataset.productId;
+                    openEditProductModal(productId);
+                });
+            });
+
+            document.querySelectorAll('.delete-product-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const productId = e.currentTarget.dataset.productId;
+                    showDeleteConfirmModal(productId);
+                });
+            });
+        }
+
+        function openEditProductModal(productId) {
+            const product = productsData.find(p => p.id === productId);
+            if (!product) {
+                showMessageModal("Product not found for editing.");
+                return;
+            }
+
+            document.getElementById('edit-product-id').value = product.id;
+            document.getElementById('edit-product-name').value = product.name;
+            document.getElementById('edit-product-price').value = product.price;
+            document.getElementById('edit-product-quantity').value = product.quantity || 0;
+            document.getElementById('edit-product-details').value = product.details || '';
+            document.getElementById('edit-product-image').value = product.image || '';
+
+            editProductModal.classList.remove('hidden');
+        }
+
+        function hideEditProductModal() {
+            editProductModal.classList.add('hidden');
+        }
+
+        editProductForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const productId = document.getElementById('edit-product-id').value;
+            const updatedData = {
+                name: document.getElementById('edit-product-name').value,
+                price: parseFloat(document.getElementById('edit-product-price').value),
+                quantity: parseInt(document.getElementById('edit-product-quantity').value),
+                details: document.getElementById('edit-product-details').value,
+                image: document.getElementById('edit-product-image').value
+            };
+
+            productsRef.child(productId).update(updatedData)
+                .then(() => {
+                    console.log("Product updated successfully!");
+                    showMessageModal('Product updated successfully!');
+                    hideEditProductModal();
+                })
+                .catch((error) => {
+                    console.error("Error updating product: ", error);
+                    showMessageModal("Failed to update product: " + error.message);
+                });
+        });
+
+        function showDeleteConfirmModal(productId) {
+            document.getElementById('delete-product-id-confirm').value = productId;
+            deleteConfirmModal.classList.remove('hidden');
+        }
+
+        function hideDeleteConfirmModal() {
+            deleteConfirmModal.classList.add('hidden');
+        }
+
+        function confirmDeleteProduct() {
+            const productId = document.getElementById('delete-product-id-confirm').value;
+            productsRef.child(productId).remove()
+                .then(() => {
+                    console.log("Product deleted successfully!");
+                    showMessageModal('Product deleted successfully!');
+                    hideDeleteConfirmModal();
+                })
+                .catch((error) => {
+                    console.error("Error deleting product: ", error);
+                    showMessageModal("Failed to delete product: " + error.message);
+                });
+        }
+
+        // --- User Management Logic (Persistent via Firebase) ---
+        function renderUsersAdminPanel() {
+            const adminUserListBody = document.getElementById('admin-user-list');
+            adminUserListBody.innerHTML = '';
+            if (registeredUsersData.length === 0) {
+                adminUserListBody.innerHTML = '<tr><td colspan="6" class="py-3 px-6 text-center">No registered users found.</td></tr>';
+                return;
+            }
+            registeredUsersData.forEach(user => {
+                const row = `
+                    <tr class="border-b border-gray-200 hover:bg-gray-100">
+                        <td class="py-3 px-6 text-left whitespace-nowrap">${user.id.substring(0, 6)}...</td>
+                        <td class="py-3 px-6 text-left">${user.name || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">${user.email || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">${user.phone || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">${user.deliveryLocation || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">
+                            <div class="flex item-center justify-center">
+                                <button class="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center mr-2 edit-user-btn" data-user-id="${user.id}" title="Edit User">
+                                    <i class="fas fa-user-edit"></i>
+                                </button>
+                                <button class="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center delete-user-btn" data-user-id="${user.id}" title="Delete User">
+                                    <i class="fas fa-user-times"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                adminUserListBody.innerHTML += row;
+            });
+
+            document.querySelectorAll('.edit-user-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const userId = e.currentTarget.dataset.userId;
+                    showMessageModal(`Simulating edit for user ID: ${userId}. (Full user editing requires Firebase Authentication and a backend. Not persistent here.)`);
+                });
+            });
+
+            document.querySelectorAll('.delete-user-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const userId = e.currentTarget.dataset.userId;
+                    registeredUsersRef.child(userId).remove()
+                        .then(() => {
+                            showMessageModal(`User ID: ${userId} deleted successfully!`);
+                        })
+                        .catch((error) => {
+                            console.error("Error deleting user: ", error);
+                            showMessageModal("Failed to delete user: " + error.message);
+                        });
+                });
+            });
+        }
+
+        // --- Employee Management Logic (Persistent via Firebase) ---
+        function renderEmployeesAdminPanel() {
+            const adminEmployeeListBody = document.getElementById('admin-employee-list');
+            adminEmployeeListBody.innerHTML = '';
+            if (employeesData.length === 0) {
+                adminEmployeeListBody.innerHTML = '<tr><td colspan="6" class="py-3 px-6 text-center">No employees found.</td></tr>';
+                return;
+            }
+            employeesData.forEach(employee => {
+                const row = `
+                    <tr class="border-b border-gray-200 hover:bg-gray-100">
+                        <td class="py-3 px-6 text-left whitespace-nowrap">${employee.id.substring(0, 6)}...</td>
+                        <td class="py-3 px-6 text-left">${employee.name || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">${employee.username || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">${employee.email || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">${employee.role || 'N/A'}</td>
+                        <td class="py-3 px-6 text-left">
+                            <div class="flex item-center justify-center">
+                                <button class="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center mr-2 edit-employee-btn" data-employee-id="${employee.id}" title="Edit Employee">
+                                    <i class="fas fa-user-edit"></i>
+                                </button>
+                                <button class="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center delete-employee-btn" data-employee-id="${employee.id}" title="Delete Employee">
+                                    <i class="fas fa-user-times"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                adminEmployeeListBody.innerHTML += row;
+            });
+
+            document.querySelectorAll('.edit-employee-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const employeeId = e.currentTarget.dataset.employeeId;
+                    showMessageModal(`Simulating edit for employee ID: ${employeeId}. (Not persistent in this demo. Edit fields would appear here for a full implementation).`);
+                });
+            });
+
+            document.querySelectorAll('.delete-employee-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const employeeId = e.currentTarget.dataset.employeeId;
+                    employeesRef.child(employeeId).remove()
+                        .then(() => {
+                            showMessageModal(`Employee ID: ${employeeId} deleted successfully!`);
+                        })
+                        .catch((error) => {
+                            console.error("Error deleting employee: ", error);
+                            showMessageModal("Failed to delete employee: " + error.message);
+                        });
+                });
+            });
+        }
+
+        document.getElementById('add-employee-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newEmployeeName = document.getElementById('new-employee-name').value;
+            const newEmployeeUsername = document.getElementById('new-employee-username').value;
+            const newEmployeePassword = document.getElementById('new-employee-password').value;
+            const newEmployeeEmail = document.getElementById('new-employee-email').value;
+            const newEmployeeRole = document.getElementById('new-employee-role').value;
+
+            // Check if username already exists for simplicity in this demo
+            if (employeesData.some(emp => emp.username === newEmployeeUsername)) {
+                showMessageModal('Username already exists. Please choose a different one.');
+                return;
+            }
+
+            employeesRef.push({
+                name: newEmployeeName,
+                username: newEmployeeUsername,
+                password: newEmployeePassword, // Warning: Insecure for production!
+                email: newEmployeeEmail,
+                role: newEmployeeRole
+            })
+            .then(() => {
+                showMessageModal(`Employee "${newEmployeeName}" added successfully!`);
+                document.getElementById('add-employee-form').reset();
+            })
+            .catch((error) => {
+                console.error("Error adding employee: ", error);
+                showMessageModal("Failed to add employee: " + error.message);
+            });
+        });
+
+        // --- Admin Order Management Logic ---
+        function renderAdminOrderManagement() {
+            const adminPendingOrdersListBody = document.getElementById('admin-pending-orders-list');
+            const adminGrabbedOrdersListBody = document.getElementById('admin-grabbed-orders-list');
+
+            adminPendingOrdersListBody.innerHTML = '';
+            adminGrabbedOrdersListBody.innerHTML = '';
+
+            const fifteenDaysAgo = new Date();
+            fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+
+            const recentPendingOrders = pendingOrdersData.filter(order => new Date(order.placedAt) >= fifteenDaysAgo);
+            const recentGrabbedOrders = grabbedOrdersFirebaseData.filter(order => new Date(order.placedAt) >= fifteenDaysAgo);
+
+            if (recentPendingOrders.length === 0) {
+                adminPendingOrdersListBody.innerHTML = '<tr><td colspan="5" class="py-3 px-6 text-center">No pending orders in the last 15 days.</td></tr>';
+            } else {
+                recentPendingOrders.forEach(order => {
+                    adminPendingOrdersListBody.innerHTML += `
+                        <tr class="border-b border-gray-200 hover:bg-gray-100">
+                            <td class="py-3 px-6 text-left whitespace-nowrap">${order.orderId}</td>
+                            <td class="py-3 px-6 text-left">${order.customer.name} (${order.customer.email})</td>
+                            <td class="py-3 px-6 text-left">BDT ${order.total.toFixed(2)}</td>
+                            <td class="py-3 px-6 text-left"><span class="px-2 py-1 font-semibold leading-tight text-orange-700 bg-orange-100 rounded-full">${order.status}</span></td>
+                            <td class="py-3 px-6 text-left">${new Date(order.placedAt).toLocaleString()}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            if (recentGrabbedOrders.length === 0) {
+                adminGrabbedOrdersListBody.innerHTML = '<tr><td colspan="7" class="py-3 px-6 text-center">No grabbed or delivered orders in the last 15 days.</td></tr>';
+            } else {
+                recentGrabbedOrders.forEach(order => {
+                    const statusClass = order.status === 'Delivered' ? 'text-green-700 bg-green-100' : 'text-blue-700 bg-blue-100';
+                    adminGrabbedOrdersListBody.innerHTML += `
+                        <tr class="border-b border-gray-200 hover:bg-gray-100">
+                            <td class="py-3 px-6 text-left whitespace-nowrap">${order.orderId}</td>
+                            <td class="py-3 px-6 text-left">${order.customer.name} (${order.customer.email})</td>
+                            <td class="py-3 px-6 text-left">BDT ${order.total.toFixed(2)}</td>
+                            <td class="py-3 px-6 text-left"><span class="px-2 py-1 font-semibold leading-tight ${statusClass} rounded-full">${order.status}</span></td>
+                            <td class="py-3 px-6 text-left">${order.grabbedBy ? order.grabbedBy.name : 'N/A'}</td>
+                            <td class="py-3 px-6 text-left">${order.grabbedAt ? new Date(order.grabbedAt).toLocaleString() : 'N/A'}</td>
+                            <td class="py-3 px-6 text-left">${order.deliveredAt ? new Date(order.deliveredAt).toLocaleString() : 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+
+        // --- Admin Settings Logic (Persistent via Firebase) ---
+        const websiteGeneralSettingsForm = document.getElementById('website-general-settings-form');
+        const homepageContentForm = document.getElementById('homepage-content-form');
+        const paymentGatewaySettingsForm = document.getElementById('payment-gateway-settings-form'); // This will be hidden as payment gateways are removed
+        const addDeliveryLocationForm = document.getElementById('add-delivery-location-form');
+        const addCouponForm = document.getElementById('add-coupon-form'); // New form
+
+
+        const addServiceBtn = document.getElementById('add-service-btn');
+        const addPromoBannerBtn = document.getElementById('add-promo-banner-btn');
+
+        function renderAdminSettings() {
+            // Website General Settings
+            document.getElementById('admin-website-name').value = currentHomepageContent.websiteName || '';
+            document.getElementById('admin-website-logo-url').value = currentHomepageContent.websiteLogoUrl || '';
+
+            // Homepage Content Settings
+            document.getElementById('home-about-us-text').value = currentHomepageContent.aboutUsText || '';
+
+            const servicesFormContainer = document.getElementById('services-form-container');
+            servicesFormContainer.innerHTML = '';
+            (currentHomepageContent.services || []).forEach((service, index) => {
+                const serviceDiv = document.createElement('div');
+                serviceDiv.className = 'flex flex-col sm:flex-row gap-2 items-end border border-gray-200 p-3 rounded-md relative';
+                serviceDiv.innerHTML = `
+                    <div class="flex-1 w-full">
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Service Title:</label>
+                        <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 service-title" value="${service.title || ''}">
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Service Description:</label>
+                        <textarea class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 service-description" rows="2"></textarea>
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Service Icon (Font Awesome Class):</label>
+                        <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 service-icon" value="${service.icon || ''}" placeholder="e.g., fas fa-star">
+                    </div>
+                    <button type="button" class="remove-service-btn bg-red-500 hover:bg-red-600 text-white p-2 rounded-full absolute top-2 right-2 sm:static"><i class="fas fa-times"></i></button>
+                `;
+                servicesFormContainer.appendChild(serviceDiv);
+            });
+            document.querySelectorAll('.remove-service-btn').forEach(btn => {
+                btn.onclick = (e) => e.target.closest('.flex-col').remove();
+            });
+
+            const contact = currentHomepageContent.contact || {};
+            document.getElementById('contact-address-input').value = contact.address || '';
+            document.getElementById('contact-phone-input').value = contact.phone || '';
+            document.getElementById('contact-email-input').value = contact.email || '';
+            document.getElementById('contact-facebook-input').value = contact.facebook || '';
+
+            const promoBannersFormContainer = document.getElementById('promo-banners-form-container');
+            promoBannersFormContainer.innerHTML = '';
+            (currentHomepageContent.promoBanners || []).forEach((banner, index) => {
+                const bannerDiv = document.createElement('div');
+                bannerDiv.className = 'flex flex-col sm:flex-row gap-2 items-end border border-gray-200 p-3 rounded-md relative';
+                bannerDiv.innerHTML = `
+                    <div class="flex-1 w-full">
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Banner Text:</label>
+                        <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 banner-text" value="${banner.text || ''}">
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-gray-700 text-sm font-medium mb-1">Banner Image URL:</label>
+                        <input type="url" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 banner-image" value="${banner.image || ''}" placeholder="https://placehold.co/1200x400">
+                    </div>
+                    <button type="button" class="remove-banner-btn bg-red-500 hover:bg-red-600 text-white p-2 rounded-full absolute top-2 right-2 sm:static"><i class="fas fa-times"></i></button>
+                `;
+                promoBannersFormContainer.appendChild(bannerDiv);
+            });
+            document.querySelectorAll('.remove-banner-btn').forEach(btn => {
+                btn.onclick = (e) => e.target.closest('.flex-col').remove();
+            });
+
+            // Payment Gateway Settings (will be hidden by CSS)
+            const paymentSettings = currentHomepageContent.paymentSettings || {};
+            document.getElementById('bkash-number-input').value = paymentSettings.bkash || '';
+            document.getElementById('rocket-number-input').value = paymentSettings.rocket || '';
+            document.getElementById('nagad-number-input').value = paymentSettings.nagad || '';
+
+            // Set footer social links from admin settings
+            document.getElementById('footer-facebook-link').href = contact.facebook || '#';
+            document.getElementById('footer-twitter-link').href = contact.twitter || '#';
+            document.getElementById('footer-instagram-link').href = contact.instagram || '#';
+            document.getElementById('footer-linkedin-link').href = contact.linkedin || '#';
+            document.getElementById('footer-whatsapp-link').href = contact.whatsapp || '#';
+            document.getElementById('footer-tiktok-link').href = contact.tiktok || '#';
+            document.getElementById('footer-youtube-link').href = contact.youtube || '#';
+
+            renderAdminDeliveryLocations();
+            renderAdminCoupons();
+        }
+
+        websiteGeneralSettingsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newWebsiteName = document.getElementById('admin-website-name').value;
+            const newWebsiteLogoUrl = document.getElementById('admin-website-logo-url').value;
+
+            homepageContentRef.update({
+                websiteName: newWebsiteName,
+                websiteLogoUrl: newWebsiteLogoUrl
+            })
+            .then(() => {
+                showMessageModal('Website general settings updated!');
+            })
+            .catch(error => {
+                console.error("Error updating website general settings:", error);
+                showMessageModal("Failed to update website general settings: " + error.message);
+            });
+        });
+
+        addServiceBtn.addEventListener('click', () => {
+            const servicesFormContainer = document.getElementById('services-form-container');
+            const serviceDiv = document.createElement('div');
+            serviceDiv.className = 'flex flex-col sm:flex-row gap-2 items-end border border-gray-200 p-3 rounded-md relative';
+            serviceDiv.innerHTML = `
+                <div class="flex-1 w-full">
+                    <label class="block text-gray-700 text-sm font-medium mb-1">Service Title:</label>
+                    <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 service-title" value="">
+                </div>
+                <div class="flex-1 w-full">
+                    <label class="block text-gray-700 text-sm font-medium mb-1">Service Description:</label>
+                    <textarea class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 service-description" rows="2"></textarea>
+                </div>
+                <div class="flex-1 w-full">
+                    <label class="block text-gray-700 text-sm font-medium mb-1">Service Icon (Font Awesome Class):</label>
+                    <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 service-icon" value="" placeholder="e.g., fas fa-star">
+                </div>
+                <button type="button" class="remove-service-btn bg-red-500 hover:bg-red-600 text-white p-2 rounded-full absolute top-2 right-2 sm:static"><i class="fas fa-times"></i></button>
+            `;
+            servicesFormContainer.appendChild(serviceDiv);
+            serviceDiv.querySelector('.remove-service-btn').onclick = (e) => e.target.closest('.flex-col').remove();
+        });
+
+        addPromoBannerBtn.addEventListener('click', () => {
+            const promoBannersFormContainer = document.getElementById('promo-banners-form-container');
+            const bannerDiv = document.createElement('div');
+            bannerDiv.className = 'flex flex-col sm:flex-row gap-2 items-end border border-gray-200 p-3 rounded-md relative';
+            bannerDiv.innerHTML = `
+                <div class="flex-1 w-full">
+                    <label class="block text-gray-700 text-sm font-medium mb-1">Banner Text:</label>
+                    <input type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 banner-text" value="">
+                </div>
+                <div class="flex-1 w-full">
+                    <label class="block text-gray-700 text-sm font-medium mb-1">Banner Image URL:</label>
+                    <input type="url" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 banner-image" value="" placeholder="https://placehold.co/1200x400">
+                </div>
+                <button type="button" class="remove-banner-btn bg-red-500 hover:bg-red-600 text-white p-2 rounded-full absolute top-2 right-2 sm:static"><i class="fas fa-times"></i></button>
+            `;
+            promoBannersFormContainer.appendChild(bannerDiv);
+            bannerDiv.querySelector('.remove-banner-btn').onclick = (e) => e.target.closest('.flex-col').remove();
+        });
+
+
+        homepageContentForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newAboutUsText = document.getElementById('home-about-us-text').value;
+
+            const newServices = [];
+            document.querySelectorAll('#services-form-container > div').forEach(serviceDiv => {
+                newServices.push({
+                    title: serviceDiv.querySelector('.service-title').value,
+                    description: serviceDiv.querySelector('.service-description').value,
+                    icon: serviceDiv.querySelector('.service-icon').value
+                });
+            });
+
+            const newContact = {
+                address: document.getElementById('contact-address-input').value,
+                phone: document.getElementById('contact-phone-input').value,
+                email: document.getElementById('contact-email-input').value,
+                facebook: document.getElementById('contact-facebook-input').value,
+                twitter: document.getElementById('footer-twitter-link').href, // Assuming Twitter, Instagram, LinkedIn are static for now, or add inputs
+                instagram: document.getElementById('footer-instagram-link').href,
+                linkedin: document.getElementById('footer-linkedin-link').href,
+                whatsapp: document.getElementById('footer-whatsapp-link').href,
+                tiktok: document.getElementById('footer-tiktok-link').href,
+                youtube: document.getElementById('footer-youtube-link').href
+            };
+
+            const newPromoBanners = [];
+            document.querySelectorAll('#promo-banners-form-container > div').forEach(bannerDiv => {
+                newPromoBanners.push({
+                    text: bannerDiv.querySelector('.banner-text').value,
+                    image: bannerDiv.querySelector('.banner-image').value
+                });
+            });
+
+            const updatedHomepageContent = {
+                ...currentHomepageContent, // Preserve existing websiteName, websiteLogoUrl, paymentSettings
+                aboutUsText: newAboutUsText,
+                services: newServices,
+                contact: newContact,
+                promoBanners: newPromoBanners
+            };
+
+            homepageContentRef.set(updatedHomepageContent)
+                .then(() => {
+                    showMessageModal('Homepage content settings updated successfully!');
+                    console.log("Homepage content saved to Firebase:", updatedHomepageContent);
+                })
+                .catch(error => {
+                    console.error("Error saving homepage content settings:", error);
+                    showMessageModal("Failed to save homepage content settings: " + error.message);
+                });
+        });
+
+        // This form is now hidden as per request. Only keeping for Firebase compatibility.
+        paymentGatewaySettingsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newBkash = document.getElementById('bkash-number-input').value;
+            const newRocket = document.getElementById('rocket-number-input').value;
+            const newNagad = document.getElementById('nagad-number-input').value;
+
+            homepageContentRef.child('paymentSettings').set({
+                bkash: newBkash,
+                rocket: newRocket,
+                nagad: newNagad
+            })
+            .then(() => {
+                showMessageModal('Payment gateway settings updated!');
+            })
+            .catch(error => {
+                console.error("Error updating payment settings:", error);
+                showMessageModal("Failed to update payment settings: " + error.message);
+            });
+        });
+
+        // --- Admin Delivery Location Management Logic ---
+        addDeliveryLocationForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const locationName = document.getElementById('new-location-name').value.trim();
+            const locationCharge = parseFloat(document.getElementById('new-location-charge').value);
+
+            if (locationName === '') {
+                showMessageModal('Location Name cannot be empty.');
+                return;
+            }
+            if (isNaN(locationCharge) || locationCharge < 0) {
+                showMessageModal('Delivery Charge must be a valid non-negative number.');
+                return;
+            }
+
+            if (deliveryLocationsData.some(loc => loc.name.toLowerCase() === locationName.toLowerCase())) {
+                showMessageModal('A location with this name already exists. Please use a different name.');
+                return;
+            }
+
+            deliveryLocationsRef.push({
+                name: locationName,
+                charge: locationCharge
+            })
+            .then(() => {
+                showMessageModal(`Delivery location "${locationName}" added successfully!`);
+                addDeliveryLocationForm.reset();
+            })
+            .catch(error => {
+                console.error("Error adding delivery location:", error);
+                showMessageModal("Failed to add delivery location: " + error.message);
+            });
+        });
+
+        function renderAdminDeliveryLocations() {
+            const adminDeliveryLocationListBody = document.getElementById('admin-delivery-location-list');
+            adminDeliveryLocationListBody.innerHTML = '';
+
+            if (deliveryLocationsData.length === 0) {
+                adminDeliveryLocationListBody.innerHTML = '<tr><td colspan="3" class="py-3 px-6 text-center">No delivery locations found.</td></tr>';
+                return;
+            }
+
+            deliveryLocationsData.forEach(loc => {
+                const row = `
+                    <tr class="border-b border-gray-200 hover:bg-gray-100">
+                        <td class="py-3 px-6 text-left">${loc.name}</td>
+                        <td class="py-3 px-6 text-left">BDT ${loc.charge.toFixed(2)}</td>
+                        <td class="py-3 px-6 text-left">
+                            <button class="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center delete-location-btn" data-location-id="${loc.id}" title="Delete Location">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                adminDeliveryLocationListBody.innerHTML += row;
+            });
+
+            document.querySelectorAll('.delete-location-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const locationId = e.currentTarget.dataset.locationId;
+                    deleteDeliveryLocation(locationId);
+                });
+            });
+        }
+
+        function deleteDeliveryLocation(locationId) {
+            deliveryLocationsRef.child(locationId).remove()
+                .then(() => {
+                    showMessageModal('Delivery location deleted successfully!');
+                })
+                .catch(error => {
+                    console.error("Error deleting delivery location:", error);
+                    showMessageModal("Failed to delete delivery location: " + error.message);
+                });
+        }
+
+        function populateDeliveryLocationsDropdown() {
+            deliveryLocationSelect.innerHTML = '';
+            if (deliveryLocationsData.length === 0) {
+                deliveryLocationSelect.innerHTML = '<option value="">No locations available</option>';
+                currentDeliveryCharge = 0;
+                selectedDeliveryLocation = null;
+                updateCheckoutSummaryAndDeliveryCharge();
+                return;
+            }
+
+            const defaultOption = document.createElement('option');
+            defaultOption.value = "";
+            defaultOption.textContent = "Select your delivery location";
+            deliveryLocationSelect.appendChild(defaultOption);
+
+
+            deliveryLocationsData.forEach(loc => {
+                const option = document.createElement('option');
+                option.value = loc.id;
+                option.textContent = `${loc.name} (BDT ${loc.charge.toFixed(2)})`;
+                deliveryLocationSelect.appendChild(option);
+            });
+
+            // Attempt to pre-select user's registered delivery location if it exists in the list
+            if (currentUser && currentUser.deliveryLocation) {
+                const foundLocation = deliveryLocationsData.find(loc => loc.name === currentUser.deliveryLocation);
+                if (foundLocation) {
+                    deliveryLocationSelect.value = foundLocation.id;
+                    selectedDeliveryLocation = foundLocation;
+                    currentDeliveryCharge = foundLocation.charge;
+                } else {
+                    // If user's registered location is not in admin defined list, default to first option
+                    // Or keep the "Select your delivery location" if no perfect match and no other preference
+                     if (deliveryLocationsData.length > 0) {
+                        deliveryLocationSelect.value = deliveryLocationsData[0].id;
+                        selectedDeliveryLocation = deliveryLocationsData[0];
+                        currentDeliveryCharge = deliveryLocationsData[0].charge;
+                     } else {
+                        deliveryLocationSelect.value = ""; // Keep default "Select..."
+                        selectedDeliveryLocation = null;
+                        currentDeliveryCharge = 0;
+                     }
+                }
+            } else {
+                 // If no current user or location, default to first option if available, otherwise keep default option
+                if (deliveryLocationsData.length > 0) {
+                    deliveryLocationSelect.value = deliveryLocationsData[0].id;
+                    selectedDeliveryLocation = deliveryLocationsData[0];
+                    currentDeliveryCharge = deliveryLocationsData[0].charge;
+                } else {
+                    deliveryLocationSelect.value = "";
+                    selectedDeliveryLocation = null;
+                    currentDeliveryCharge = 0;
+                }
+            }
+            updateCheckoutSummaryAndDeliveryCharge(); // Update summary based on initial or selected location
+        }
+
+        // --- Coupon Management Logic ---
+        addCouponForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const couponCode = document.getElementById('new-coupon-code').value.trim().toUpperCase();
+            const discountPercent = parseFloat(document.getElementById('new-coupon-discount').value);
+
+            if (couponCode === '') {
+                showMessageModal('Coupon Code cannot be empty.');
+                return;
+            }
+            if (isNaN(discountPercent) || discountPercent <= 0 || discountPercent > 100) {
+                showMessageModal('Discount Percentage must be a valid number between 1 and 100.');
+                return;
+            }
+
+            if (couponsData.some(coupon => coupon.code === couponCode)) {
+                showMessageModal('A coupon with this code already exists. Please use a different code.');
+                return;
+            }
+
+            couponsRef.push({
+                code: couponCode,
+                discountPercent: discountPercent,
+                isActive: true // Coupons are active by default
+            })
+            .then(() => {
+                showMessageModal(`Coupon "${couponCode}" added successfully!`);
+                addCouponForm.reset();
+            })
+            .catch(error => {
+                console.error("Error adding coupon:", error);
+                showMessageModal("Failed to add coupon: " + error.message);
+            });
+        });
+
+
+
+// footer JS to read these from Firebase and apply
+database.ref('contactInfo').on('value', (snapshot) => {
+  const info = snapshot.val() || {};
+  document.getElementById('footer-tiktok-link').href = info.tiktok || '#';
+  document.getElementById('footer-linkedin-link').href = info.linkedin || '#';
+  document.getElementById('footer-whatsapp-link').href = info.whatsapp ? `https://wa.me/${info.whatsapp}` : '#';
+});
+
+
+
+        function renderAdminCoupons() {
+            const adminCouponListBody = document.getElementById('admin-coupon-list');
+            adminCouponListBody.innerHTML = '';
+
+            if (couponsData.length === 0) {
+                adminCouponListBody.innerHTML = '<tr><td colspan="3" class="py-3 px-6 text-center">No coupons found.</td></tr>';
+                return;
+            }
+
+            couponsData.forEach(coupon => {
+                const row = `
+                    <tr class="border-b border-gray-200 hover:bg-gray-100">
+                        <td class="py-3 px-6 text-left">${coupon.code}</td>
+                        <td class="py-3 px-6 text-left">${coupon.discountPercent}%</td>
+                        <td class="py-3 px-6 text-left">
+                            <button class="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center delete-coupon-btn" data-coupon-id="${coupon.id}" title="Delete Coupon">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                adminCouponListBody.innerHTML += row;
+            });
+
+            document.querySelectorAll('.delete-coupon-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const couponId = e.currentTarget.dataset.couponId;
+                    deleteCoupon(couponId);
+                });
+            });
+        }
+
+        function deleteCoupon(couponId) {
+            couponsRef.child(couponId).remove()
+                .then(() => {
+                    showMessageModal('Coupon deleted successfully!');
+                })
+                .catch(error => {
+                    console.error("Error deleting coupon:", error);
+                    showMessageModal("Failed to delete coupon: " + error.message);
+                });
+        }
+
+
+        // --- Initial Load & Firebase Listeners ---
+        window.addEventListener('DOMContentLoaded', () => {
+            updateCartCount();
+            
+            // Listen for product data changes from Firebase Realtime Database
+            productsRef.on('value', (snapshot) => {
+                productsData = [];
+                snapshot.forEach(childSnapshot => {
+                    const product = childSnapshot.val();
+                    productsData.push({ id: childSnapshot.key, ...product });
+                });
+                renderProducts();
+                renderAdminProductList();
+            }, (error) => {
+                console.error("Error fetching products from Firebase:", error);
+                showMessageModal("Could not load products. Please check your internet connection and Firebase Realtime Database configuration. Error: " + error.message);
+            });
+
+            // Listen for homepage content changes from Firebase Realtime Database
+            homepageContentRef.on('value', (snapshot) => {
+                currentHomepageContent = snapshot.val() || {};
+                renderHomepageContent(currentHomepageContent);
+            }, (error) => {
+                console.error("Error fetching homepage content from Firebase:", error);
+                showMessageModal("Could not load homepage content. Error: " + error.message);
+            });
+
+            // Listen for registered user data changes from Firebase Realtime Database
+            registeredUsersRef.on('value', (snapshot) => {
+                registeredUsersData = [];
+                snapshot.forEach(childSnapshot => {
+                    registeredUsersData.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+                renderUsersAdminPanel();
+                if (currentUser && !registeredUsersData.find(u => u.id === currentUser.id)) {
+                    currentUser = null;
+                    showMessageModal('Your account was removed. You have been logged out.');
+                    showPage('home');
+                } else if (currentUser) {
+                    renderUserProfile();
+                }
+            }, (error) => {
+                console.error("Error fetching registered users from Firebase:", error);
+                showMessageModal("Could not load registered users. Error: " + error.message);
+            });
+
+            // Listen for employee data changes from Firebase Realtime Database
+            employeesRef.on('value', (snapshot) => {
+                employeesData = [];
+                snapshot.forEach(childSnapshot => {
+                    employeesData.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+                renderEmployeesAdminPanel();
+                if (currentEmployee && !employeesData.find(emp => emp.id === currentEmployee.id)) {
+                    currentEmployee = null;
+                    showMessageModal('Your employee account was removed. You have been logged out.');
+                    showPage('home');
+                }
+            }, (error) => {
+                console.error("Error fetching employees from Firebase:", error);
+                showMessageModal("Could not load employee data. Error: " + error.message);
+            });
+
+            // Listen for pending order data changes from Firebase Realtime Database
+            pendingOrdersRef.on('value', (snapshot) => {
+                pendingOrdersData = [];
+                snapshot.forEach(childSnapshot => {
+                    pendingOrdersData.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+                if (document.getElementById('employee-dashboard-page').classList.contains('active')) {
+                    renderPendingOrdersForEmployee();
+                }
+                if (document.getElementById('admin-dashboard-page').classList.contains('active') && document.getElementById('order-manage-sub-section').classList.contains('active')) {
+                     renderAdminOrderManagement();
+                }
+            }, (error) => {
+                console.error("Error fetching pending orders from Firebase:", error);
+            });
+
+            // Listen for grabbed order data changes from Firebase Realtime Database
+            grabbedOrdersRef.on('value', (snapshot) => {
+                grabbedOrdersFirebaseData = [];
+                snapshot.forEach(childSnapshot => {
+                    grabbedOrdersFirebaseData.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+                 if (document.getElementById('admin-dashboard-page').classList.contains('active') && document.getElementById('order-manage-sub-section').classList.contains('active')) {
+                     renderAdminOrderManagement();
+                }
+            }, (error) => {
+                console.error("Error fetching grabbed orders from Firebase:", error);
+            });
+
+            // NEW: Listen for delivery locations data changes
+            deliveryLocationsRef.on('value', (snapshot) => {
+                deliveryLocationsData = [];
+                snapshot.forEach(childSnapshot => {
+                    deliveryLocationsData.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+                populateDeliveryLocationsDropdown();
+                if (document.getElementById('admin-dashboard-page').classList.contains('active') && document.getElementById('admin-settings-sub-section').classList.contains('active')) {
+                    renderAdminDeliveryLocations();
+                }
+            }, (error) => {
+                console.error("Error fetching delivery locations from Firebase:", error);
+                showMessageModal("Could not load delivery locations. Error: " + error.message);
+            });
+
+            // NEW: Listen for coupon data changes
+            couponsRef.on('value', (snapshot) => {
+                couponsData = [];
+                snapshot.forEach(childSnapshot => {
+                    couponsData.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+                if (document.getElementById('admin-dashboard-page').classList.contains('active') && document.getElementById('admin-settings-sub-section').classList.contains('active')) {
+                    renderAdminCoupons();
+                }
+                // If a coupon was already applied and its data changed, recalculate
+                if (appliedCoupon) {
+                    const updatedCoupon = couponsData.find(c => c.code === appliedCoupon.code);
+                    if (!updatedCoupon || !updatedCoupon.isActive) {
+                        appliedCoupon = null;
+                        couponDiscountDisplay.classList.add('hidden');
+                        couponErrorDisplay.textContent = 'Applied coupon is no longer valid or active.';
+                        couponErrorDisplay.classList.remove('hidden');
+                    } else {
+                        appliedCoupon = updatedCoupon; // Update with latest details
+                    }
+                    updateCheckoutSummaryAndDeliveryCharge();
+                }
+            }, (error) => {
+                console.error("Error fetching coupons from Firebase:", error);
+                showMessageModal("Could not load coupon data. Error: " + error.message);
+            });
+
+
+            seedInitialData(); // Seed initial data if the database is empty (for first run)
+
+            // Setup a MutationObserver to re-render cart/checkout/admin related items if the page becomes active
+            const observer = new MutationObserver((mutationsList) => {
+                for (const mutation of mutationsList) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        const targetElement = mutation.target;
+                        if (targetElement.id === 'cart-page' && targetElement.classList.contains('active')) {
+                            renderCartItems();
+                        }
+                        if (targetElement.id === 'checkout-page' && targetElement.classList.contains('active')) {
+                            updateCheckoutSummaryAndDeliveryCharge(); // Ensure correct payment fields and delivery charge are shown
+                        }
+                        if (targetElement.id === 'admin-dashboard-page' && targetElement.classList.contains('active')) {
+                            showAdminSubPage('product-manage'); // Default to product management when admin dashboard is first opened
+                        }
+                         if (targetElement.id === 'user-dashboard-page' && targetElement.classList.contains('active')) {
+                            renderUserProfile();
+                        }
+                        if (targetElement.id === 'employee-dashboard-page' && targetElement.classList.contains('active')) {
+                            renderEmployeeDashboard();
+                        }
+                        // Handle showing specific login sections when login page becomes active
+                        if (targetElement.id === 'login-page' && targetElement.classList.contains('active')) {
+                            // If user was redirected to login without explicit type, default to user login form
+                            if (userLoginSection.classList.contains('hidden') && employeeLoginSection.classList.contains('hidden') && adminLoginSection.classList.contains('hidden')) {
+                                userLoginSection.classList.remove('hidden');
+                                userRegisterForm.classList.add('hidden');
+                                userLoginForm.classList.remove('hidden');
+                                loginFormTitle.textContent = 'User Login';
+                            }
+                        }
+                    }
+                }
+            });
+
+            pageSections.forEach(section => {
+                observer.observe(section, { attributes: true });
+            });
+
+            // MODIFIED INITIAL PAGE LOAD LOGIC: Always show the admin login page directly on load
+            showPage('login');
+            // Ensure only the admin login section is visible within the login page
+            userLoginSection.classList.add('hidden');
+            employeeLoginSection.classList.add('hidden');
+            adminLoginSection.classList.remove('hidden'); // Show admin login
+            loginFormTitle.textContent = 'Admin Login'; // Set title
+        });
+    </script>
+</body>
+</html>
